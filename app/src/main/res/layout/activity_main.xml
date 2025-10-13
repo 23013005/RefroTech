@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/main"
     android:layout_width="match_parent"
@@ -19,14 +20,9 @@
             android:layout_height="50dp"
             android:orientation="vertical"
             android:layout_gravity="center"
-            android:layout_marginTop="30dp"
+            android:layout_marginTop="40dp"
             android:background="@drawable/refro_logo2">
         </ImageView>
-        <ImageView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="30dp"
-            android:background="@drawable/companyphoto1"/>
     </LinearLayout>
 
     <LinearLayout
@@ -38,15 +34,18 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="400dp"
+            android:layout_marginTop="200dp"
             android:text="Selamat Datang di Refro Tech"
             android:textSize="30sp"
             android:fontFamily="@font/instrumentsans_semibold"/>
+
+
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:gravity="center"
+            android:layout_marginTop="5dp"
             android:text="Login Sekarang!"
             android:textSize="25sp"
             android:fontFamily="@font/instrumentsans_semibold" />
@@ -71,7 +70,7 @@
             android:inputType="textPersonName"
             android:textColor="@color/black"
             android:textColorHint="@color/text_grey"
-            android:layout_marginTop="500dp"
+            android:layout_marginTop="350dp"
             android:gravity="center_vertical"/>
 
         <EditText
@@ -86,7 +85,7 @@
             android:inputType="textPassword"
             android:textColor="@color/black"
             android:textColorHint="@color/text_grey"
-            android:layout_marginTop="10dp"
+            android:layout_marginTop="30dp"
             android:gravity="center_vertical"/>
     </LinearLayout>
 
@@ -101,7 +100,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:background="@drawable/login_button"
-            android:layout_marginTop="640dp">
+            android:layout_marginTop="550dp">
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -124,7 +123,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:background="@drawable/regis_button"
-            android:layout_marginTop="695dp">
+            android:layout_marginTop="620dp">
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -136,29 +135,31 @@
                 android:layout_marginBottom="3dp"/>
         </FrameLayout>
     </LinearLayout>
-
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
         android:gravity="center"
+        android:orientation="vertical"
         tools:ignore="MissingConstraints">
+
         <FrameLayout
             android:id="@+id/emp_login_page_button"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:background="@drawable/emp_login_button"
+            android:layout_gravity="center"
             android:layout_marginTop="835dp"
-            android:layout_gravity="center">
+            android:background="@drawable/emp_login_button">
+
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
-                android:textSize="16sp"
-                android:textColor="@color/white"
                 android:fontFamily="sans-serif-medium"
-                android:text="Masuk Sebagai Pegawai"/>
+                android:text="Masuk Sebagai Pegawai"
+                android:textColor="@color/white"
+                android:textSize="16sp" />
         </FrameLayout>
     </LinearLayout>
+
 
 </androidx.constraintlayout.widget.ConstraintLayout>
