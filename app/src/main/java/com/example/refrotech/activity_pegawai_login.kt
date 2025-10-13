@@ -7,33 +7,26 @@ import android.widget.FrameLayout
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 
-class MainActivity : AppCompatActivity() {
+class activity_pegawai_login : AppCompatActivity() {
 
     private lateinit var usernameInput: EditText
     private lateinit var passwordInput: EditText
     private lateinit var loginButton: FrameLayout
-    private lateinit var registerButton: FrameLayout
-    private lateinit var empLoginButton: FrameLayout
+    private lateinit var custLoginButton: FrameLayout
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main) // customer login xml
+        setContentView(R.layout.pegawai_login) // employee login xml
 
         // Views
         usernameInput = findViewById(R.id.username_input)
         passwordInput = findViewById(R.id.password_input)
         loginButton = findViewById(R.id.login_button)
-        registerButton = findViewById(R.id.register_button)
-        empLoginButton = findViewById(R.id.emp_login_page_button)
+        custLoginButton = findViewById(R.id.cust_login_page_button)
 
-        // Switch to employee login page (using the original activity class name)
-        empLoginButton.setOnClickListener {
-            startActivity(Intent(this, activity_pegawai_login::class.java))
-        }
-
-        // Register button - not implemented yet, show message
-        registerButton.setOnClickListener {
-            Toast.makeText(this, "Register page not implemented yet.", Toast.LENGTH_SHORT).show()
+        // Switch back to customer login page
+        custLoginButton.setOnClickListener {
+            startActivity(Intent(this, MainActivity::class.java))
         }
 
         // Login action (only show a toast on success)
@@ -46,10 +39,9 @@ class MainActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
 
-            // Dummy username/password check — replace with real backend or Firebase username lookup later
-            if (username == "customer" && password == "1234") {
-                Toast.makeText(this, "Login berhasil.", Toast.LENGTH_SHORT).show()
-                // optionally clear password field
+            // Dummy username/password check — replace with real backend later
+            if (username == "employee" && password == "1234") {
+                Toast.makeText(this, "Login pegawai berhasil.", Toast.LENGTH_SHORT).show()
                 passwordInput.text?.clear()
             } else {
                 Toast.makeText(this, "Login gagal: Username atau password salah.", Toast.LENGTH_LONG).show()

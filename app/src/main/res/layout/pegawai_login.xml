@@ -7,7 +7,7 @@
     android:layout_height="match_parent"
     android:background="@drawable/bglogin_pelanggan"
     android:orientation="vertical"
-    tools:context=".MainActivity">
+    tools:context=".activity_pegawai_login">
 
     <LinearLayout
         android:id="@+id/Header"
@@ -36,7 +36,7 @@
             android:text="Selamat Datang di RefroTech"
             android:textSize="33sp"
             android:textColor="@color/black"
-            android:fontFamily="@font/instrumentsans_semibold" />
+            android:fontFamily="@font/instrumentsans_semibold"/>
 
         <TextView
             android:layout_width="match_parent"
@@ -96,7 +96,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:background="@drawable/login_button"
-            android:layout_marginTop="70dp">
+            android:layout_marginTop="40dp">
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -109,28 +109,7 @@
         </FrameLayout>
     </LinearLayout>
 
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:gravity="center">
-        <FrameLayout
-            android:id="@+id/register_button"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:background="@drawable/regis_button"
-            android:layout_marginTop="20dp">
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:text="Daftar Akun"
-                android:fontFamily="sans-serif-medium"
-                android:textSize="23sp"
-                android:textColor="@color/white"
-                android:layout_marginBottom="3dp"/>
-        </FrameLayout>
-    </LinearLayout>
+
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -139,11 +118,11 @@
         android:orientation="vertical">
 
         <FrameLayout
-            android:id="@+id/emp_login_page_button"
+            android:id="@+id/cust_login_page_button"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
-            android:layout_marginTop="50dp"
+            android:layout_marginTop="40dp"
             android:background="@drawable/emp_login_button">
 
             <TextView
@@ -151,7 +130,7 @@
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
                 android:fontFamily="sans-serif-medium"
-                android:text="Masuk Sebagai Pegawai"
+                android:text="Masuk Sebagai Pelanggan"
                 android:textColor="@color/white"
                 android:textSize="16sp" />
         </FrameLayout>
