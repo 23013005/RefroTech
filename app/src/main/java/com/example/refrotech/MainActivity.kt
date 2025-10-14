@@ -6,9 +6,11 @@ import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import com.google.firebase.firestore.FirebaseFirestore
 
 class MainActivity : AppCompatActivity() {
 
+    private lateinit var db: FirebaseFirestore
     private lateinit var usernameInput: EditText
     private lateinit var passwordInput: EditText
     private lateinit var loginButton: FrameLayout
@@ -17,43 +19,52 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main) // customer login xml
+        setContentView(R.layout.activity_main)
 
-        // Views
+        db = FirebaseFirestore.getInstance()
+
         usernameInput = findViewById(R.id.username_input)
         passwordInput = findViewById(R.id.password_input)
         loginButton = findViewById(R.id.login_button)
         registerButton = findViewById(R.id.register_button)
         empLoginButton = findViewById(R.id.emp_login_page_button)
 
-        // Switch to employee login page (using the original activity class name)
+        // 🔹 Navigate to Register page
+        registerButton.setOnClickListener {
+            startActivity(Intent(this, Register::class.java))
+        }
+
+        // 🔹 Navigate to Employee Login page
         empLoginButton.setOnClickListener {
             startActivity(Intent(this, activity_pegawai_login::class.java))
         }
 
-        // Register button - not implemented yet, show message
-        registerButton.setOnClickListener {
-            Toast.makeText(this, "Register page not implemented yet.", Toast.LENGTH_SHORT).show()
-        }
-
-        // Login action (only show a toast on success)
+        // 🔹 Handle Customer Login
         loginButton.setOnClickListener {
             val username = usernameInput.text.toString().trim()
             val password = passwordInput.text.toString().trim()
 
             if (username.isEmpty() || password.isEmpty()) {
-                Toast.makeText(this, "Mohon isi semua kolom.", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Please fill all fields.", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
 
-            // Dummy username/password check — replace with real backend or Firebase username lookup later
-            if (username == "customer" && password == "1234") {
-                Toast.makeText(this, "Login berhasil.", Toast.LENGTH_SHORT).show()
-                // optionally clear password field
-                passwordInput.text?.clear()
-            } else {
-                Toast.makeText(this, "Login gagal: Username atau password salah.", Toast.LENGTH_LONG).show()
-            }
+            // Query Firestore for matching username & password
+            db.collection("users")
+                .whereEqualTo("username", username)
+                .whereEqualTo("password", password)
+                .get()
+                .addOnSuccessListener { result ->
+                    if (!result.isEmpty) {
+                        // ✅ Login successful
+                        Toast.makeText(this, "Login successful!", Toast.LENGTH_SHORT).show()
+                    } else {
+                        Toast.makeText(this, "Invalid username or password.", Toast.LENGTH_LONG).show()
+                    }
+                }
+                .addOnFailureListener { e ->
+                    Toast.makeText(this, "Error: ${e.message}", Toast.LENGTH_LONG).show()
+                }
         }
     }
 }
