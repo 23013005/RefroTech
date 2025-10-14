@@ -56,8 +56,28 @@ class MainActivity : AppCompatActivity() {
                 .get()
                 .addOnSuccessListener { result ->
                     if (!result.isEmpty) {
-                        // ✅ Login successful
-                        Toast.makeText(this, "Login successful!", Toast.LENGTH_SHORT).show()
+                        val userDoc = result.documents[0]
+                        val role = userDoc.getString("role")
+
+                        when (role) {
+                            "customer" -> {
+                                Toast.makeText(this, "Login successful!", Toast.LENGTH_SHORT).show()
+                            }
+                            "leader", "technician" -> {
+                                Toast.makeText(
+                                    this,
+                                    "Access denied. Please use the Employee Login page.",
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            }
+                            else -> {
+                                Toast.makeText(
+                                    this,
+                                    "Invalid role. Contact admin.",
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            }
+                        }
                     } else {
                         Toast.makeText(this, "Invalid username or password.", Toast.LENGTH_LONG).show()
                     }

@@ -43,22 +43,31 @@ class activity_pegawai_login : AppCompatActivity() {
                 return@setOnClickListener
             }
 
-            // Employee login (check Firestore)
+            // Check Firestore for leader or technician
             db.collection("users")
                 .whereEqualTo("username", username)
                 .whereEqualTo("password", password)
-                .whereEqualTo("role", "employee")
                 .get()
                 .addOnSuccessListener { result ->
                     if (!result.isEmpty) {
-                        Toast.makeText(this, "Login pegawai berhasil.", Toast.LENGTH_SHORT).show()
-                        passwordInput.text?.clear()
+                        val document = result.documents[0]
+                        val role = document.getString("role")
+
+                        when (role) {
+                            "leader" -> {
+                                Toast.makeText(this, "Login berhasil sebagai Leader.", Toast.LENGTH_SHORT).show()
+                                passwordInput.text?.clear()
+                            }
+                            "technician" -> {
+                                Toast.makeText(this, "Login berhasil sebagai Teknisi.", Toast.LENGTH_SHORT).show()
+                                passwordInput.text?.clear()
+                            }
+                            else -> {
+                                Toast.makeText(this, "Akun ini bukan pegawai yang diizinkan.", Toast.LENGTH_LONG).show()
+                            }
+                        }
                     } else {
-                        Toast.makeText(
-                            this,
-                            "Username atau password salah, atau akun bukan pegawai.",
-                            Toast.LENGTH_LONG
-                        ).show()
+                        Toast.makeText(this, "Username atau password salah.", Toast.LENGTH_LONG).show()
                     }
                 }
                 .addOnFailureListener { e ->
