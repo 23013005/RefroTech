@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "442871104399",
+    "project_id": "refrotech",
+    "storage_bucket": "refrotech.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:442871104399:android:a0516143c93e680a5241fa",
+        "android_client_info": {
+          "package_name": "com.example.refrotech"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyByuwRCB_TNlGJwzB7TehCzL47rUVWplOM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
