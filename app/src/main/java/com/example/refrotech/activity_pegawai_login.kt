@@ -1,6 +1,9 @@
 package com.example.refrotech
 
 import android.content.Intent
+import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.RippleDrawable
 import android.os.Bundle
 import android.widget.EditText
 import android.widget.FrameLayout
@@ -27,13 +30,17 @@ class activity_pegawai_login : AppCompatActivity() {
         loginButton = findViewById(R.id.login_button)
         custLoginButton = findViewById(R.id.cust_login_page_button)
 
-        // Switch to customer login page
+        // 🔹 Apply ripple effects to buttons
+        applyRippleEffect(loginButton)
+        applyRippleEffect(custLoginButton)
+
+        // 🔹 Switch to customer login page
         custLoginButton.setOnClickListener {
             startActivity(Intent(this, MainActivity::class.java))
             finish()
         }
 
-        // Employee login button
+        // 🔹 Employee login logic
         loginButton.setOnClickListener {
             val username = usernameInput.text.toString().trim()
             val password = passwordInput.text.toString().trim()
@@ -43,7 +50,6 @@ class activity_pegawai_login : AppCompatActivity() {
                 return@setOnClickListener
             }
 
-            // Check Firestore for leader or technician
             db.collection("users")
                 .whereEqualTo("username", username)
                 .whereEqualTo("password", password)
@@ -57,6 +63,12 @@ class activity_pegawai_login : AppCompatActivity() {
                             "leader" -> {
                                 Toast.makeText(this, "Login berhasil sebagai Leader.", Toast.LENGTH_SHORT).show()
                                 passwordInput.text?.clear()
+
+                                // ✅ Navigate to Leader Dashboard
+                                val intent = Intent(this, leader_dashboard::class.java)
+                                intent.putExtra("username", username)
+                                startActivity(intent)
+                                finish()
                             }
                             "technician" -> {
                                 Toast.makeText(this, "Login berhasil sebagai Teknisi.", Toast.LENGTH_SHORT).show()
@@ -74,5 +86,20 @@ class activity_pegawai_login : AppCompatActivity() {
                     Toast.makeText(this, "Error: ${e.message}", Toast.LENGTH_LONG).show()
                 }
         }
+    }
+
+    // 🔸 Ripple effect function (rounded blue ripple)
+    private fun applyRippleEffect(button: FrameLayout) {
+        val rippleColor = Color.parseColor("#EAFFD7") // RefroTech blue
+        val colorStateList = android.content.res.ColorStateList.valueOf(rippleColor)
+
+        val mask = GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            cornerRadius = 100f
+            setColor(Color.WHITE)
+        }
+
+        val ripple = RippleDrawable(colorStateList, null, mask)
+        button.foreground = ripple
     }
 }

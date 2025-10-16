@@ -2,7 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     id("kotlin-parcelize")
-    id("com.google.gms.google-services") // Firebase plugin must be at the bottom
+    id("com.google.gms.google-services") // Firebase plugin
 }
 
 android {
@@ -39,7 +39,6 @@ android {
 }
 
 dependencies {
-    // AndroidX core dependencies
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
     implementation(libs.material)
@@ -50,20 +49,23 @@ dependencies {
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
 
-    // Additional libraries
     implementation("com.android.volley:volley:1.2.1")
-    implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
 
-    // ✅ Firebase BoM (Bill of Materials)
+    // Firebase
     implementation(platform("com.google.firebase:firebase-bom:33.4.0"))
-
-    // ✅ Firebase Libraries
-    implementation("com.google.firebase:firebase-auth")
-    implementation("com.google.firebase:firebase-firestore")
-    implementation("com.google.firebase:firebase-database")
-
-    // Optional (but recommended for smoother Kotlin support)
     implementation("com.google.firebase:firebase-auth-ktx")
     implementation("com.google.firebase:firebase-firestore-ktx")
     implementation("com.google.firebase:firebase-database-ktx")
+
+    // Calendar
+    implementation("com.github.prolificinteractive:material-calendarview:2.0.1")
+
+    // Fix for AndroidX only
+    implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
+}
+
+configurations.all {
+    exclude(group = "com.android.support", module = "support-v4")
+    exclude(group = "com.android.support", module = "support-annotations")
+    exclude(group = "androidx.legacy")
 }

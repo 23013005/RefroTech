@@ -33,20 +33,20 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Ayo Gunakan Layanan Kami"
-            android:textSize="33sp"
+            android:textSize="25sp"
             android:textColor="@color/black"
-            android:layout_marginTop="110dp"
-            android:fontFamily="@font/instrumentsans_semibold"/>
+            android:layout_marginTop="120dp"
+            android:fontFamily="@font/inter_bold"/>
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:gravity="center"
-            android:layout_marginTop="30dp"
+            android:layout_marginTop="20dp"
             android:text="Login Sekarang!"
-            android:textSize="25sp"
+            android:textSize="20sp"
             android:textColor="@color/black"
-            android:fontFamily="@font/instrumentsans_semibold" />
+            android:fontFamily="@font/inter_bold" />
     </LinearLayout>
 
     <LinearLayout
@@ -128,8 +128,8 @@
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
                 android:text="Daftar Akun"
-                android:fontFamily="sans-serif-medium"
-                android:textSize="23sp"
+                android:fontFamily="@font/inter_bold"
+                android:textSize="18sp"
                 android:textColor="@color/white"
                 android:layout_marginBottom="3dp"/>
         </FrameLayout>
@@ -140,7 +140,7 @@
             android:fontFamily="sans-serif-medium"
             android:textSize="15sp"
             android:textColor="@color/black"
-            android:layout_marginTop="80dp"/>
+            android:layout_marginTop="60dp"/>
         <FrameLayout
             android:id="@+id/cust_login_page_button"
             android:layout_width="wrap_content"
@@ -152,8 +152,8 @@
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
                 android:text="Masuk"
-                android:fontFamily="sans-serif-medium"
-                android:textSize="23sp"
+                android:fontFamily="@font/inter_bold"
+                android:textSize="18sp"
                 android:textColor="@color/black"
                 android:layout_marginBottom="3dp"/>
         </FrameLayout>
