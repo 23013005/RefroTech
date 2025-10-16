@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:paddingVertical="14dp"
+    android:paddingHorizontal="20dp"
+    android:gravity="center_vertical"
+    android:background="@drawable/input_box_login">
+
+    <!-- Technician Name -->
+    <TextView
+        android:id="@+id/tvTechnicianName"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:text="Nama Teknisi"
+        android:textColor="@color/black"
+        android:textSize="16sp"
+        android:fontFamily="@font/inter_bold" />
+
+    <!-- Technician Status -->
+    <TextView
+        android:id="@+id/tvTechnicianStatus"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Available"
+        android:textSize="14sp"
+        android:fontFamily="@font/inter_bold"
+        android:textColor="@android:color/holo_green_dark" />
+</LinearLayout>

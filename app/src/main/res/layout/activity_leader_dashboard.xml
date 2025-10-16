@@ -76,25 +76,15 @@
         android:clipToPadding="false"
         android:contentDescription="Schedule list" />
 
-    <!-- ===== ADD SCHEDULE BUTTON ===== -->
-    <FrameLayout
-        android:id="@+id/btnAddSchedule"
+
+    <!-- ===== FLOATING ACTION BUTTON (NEW) ===== -->
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fabAddSchedule"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="20dp"
-        android:layout_marginBottom="50dp"
-        android:paddingHorizontal="40dp"
-        android:paddingVertical="12dp"
-        android:background="@drawable/regis_button">
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:text="Tambah Jadwal"
-            android:textColor="@color/white"
-            android:textSize="18sp"
-            android:fontFamily="@font/inter_bold" />
-    </FrameLayout>
+        android:layout_margin="20dp"
+        android:src="@drawable/ic_add"
+        android:contentDescription="Add or Edit Schedule"
+        android:layout_gravity="center"/>
 
 </LinearLayout>

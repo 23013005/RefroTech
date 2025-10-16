@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center_horizontal"
+    android:background="@drawable/bglogin_pelanggan"
+    tools:context=".EditSchedulePage">
+
+    <!-- ===== HEADER ===== -->
+    <LinearLayout
+        android:id="@+id/Header"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:orientation="vertical">
+
+        <ImageView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="40dp"
+            android:contentDescription="@string/app_name"
+            android:background="@drawable/refro_logo2" />
+    </LinearLayout>
+
+    <!-- ===== PAGE TITLE ===== -->
+    <TextView
+        android:id="@+id/editScheduleTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Edit Jadwal"
+        android:textSize="25sp"
+        android:textColor="@color/black"
+        android:fontFamily="@font/inter_bold"
+        android:layout_marginTop="50dp"
+        android:gravity="center" />
+
+    <!-- ===== FORM FIELDS ===== -->
+    <EditText
+        android:id="@+id/etTime"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="40dp"
+        android:layout_marginTop="30dp"
+        android:hint="Waktu (contoh: 13:00)"
+        android:inputType="none"
+        android:focusable="false"
+        android:clickable="true"
+        android:cursorVisible="false"
+        android:background="@drawable/input_box_login"
+        android:padding="12dp"
+        android:textColor="@color/black"
+        android:textSize="16sp"
+        android:fontFamily="@font/inter_bold" />
+
+
+    <EditText
+        android:id="@+id/etTechnician"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="40dp"
+        android:layout_marginTop="20dp"
+        android:hint="Nama Teknisi"
+        android:background="@drawable/input_box_login"
+        android:padding="12dp"
+        android:textColor="@color/black"
+        android:textSize="16sp"
+        android:fontFamily="@font/inter_bold"
+        android:focusable="false"
+        android:clickable="true"
+        android:cursorVisible="false" />
+
+    <EditText
+        android:id="@+id/etCustomer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="40dp"
+        android:layout_marginTop="20dp"
+        android:hint="Nama Pelanggan"
+        android:background="@drawable/input_box_login"
+        android:padding="12dp"
+        android:textColor="@color/black"
+        android:textSize="16sp"
+        android:fontFamily="@font/inter_bold" />
+
+    <EditText
+        android:id="@+id/etAddress"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="40dp"
+        android:layout_marginTop="20dp"
+        android:hint="Alamat Pekerjaan"
+        android:background="@drawable/input_box_login"
+        android:padding="12dp"
+        android:textColor="@color/black"
+        android:textSize="16sp"
+        android:fontFamily="@font/inter_bold" />
+
+    <!-- ===== BUTTONS (SIDE BY SIDE) ===== -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:layout_marginTop="40dp"
+        android:layout_marginBottom="40dp"
+        android:paddingHorizontal="40dp">
+
+        <!-- UPDATE BUTTON -->
+        <FrameLayout
+            android:id="@+id/btnSave"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingVertical="12dp"
+            android:layout_marginEnd="20dp"
+            android:background="@drawable/edit_button">
+        </FrameLayout>
+
+        <!-- DELETE BUTTON -->
+        <FrameLayout
+            android:id="@+id/btnDelete"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingVertical="12dp"
+            android:layout_marginStart="20dp"
+            android:background="@drawable/delete_button">
+        </FrameLayout>
+    </LinearLayout>
+
+</LinearLayout>
