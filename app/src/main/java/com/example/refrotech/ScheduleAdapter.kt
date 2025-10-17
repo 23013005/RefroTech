@@ -1,39 +1,49 @@
 package com.example.refrotech
 
+import android.content.Context
+import android.content.Intent
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 
-class ScheduleAdapter : RecyclerView.Adapter<ScheduleAdapter.ViewHolder>() {
+class ScheduleAdapter(
+    private val context: Context,
+    private var scheduleList: List<Schedule>
+) : RecyclerView.Adapter<ScheduleAdapter.ScheduleViewHolder>() {
 
-    private val scheduleList = mutableListOf<Schedule>()
-
-    inner class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
-        val tvNamaPemesan: TextView = view.findViewById(R.id.tvNamaPemesan)
-        val tvJam: TextView = view.findViewById(R.id.tvJam)
-        val tvTeknisi: TextView = view.findViewById(R.id.tvTeknisi)
+    class ScheduleViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        val tvCustomerName: TextView = itemView.findViewById(R.id.tvCustomerName)
+        val tvTime: TextView = itemView.findViewById(R.id.tvTime)
+        val tvTechnician: TextView = itemView.findViewById(R.id.tvTechnician)
+        val btnEdit: ImageView = itemView.findViewById(R.id.btnEditSchedule)
     }
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ScheduleViewHolder {
         val view = LayoutInflater.from(parent.context)
             .inflate(R.layout.item_schedule, parent, false)
-        return ViewHolder(view)
+        return ScheduleViewHolder(view)
     }
 
-    override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+    override fun onBindViewHolder(holder: ScheduleViewHolder, position: Int) {
         val schedule = scheduleList[position]
-        holder.tvNamaPemesan.text = "Nama Pemesan: ${schedule.namaPemesan}"
-        holder.tvJam.text = "Jam: ${schedule.jam}"
-        holder.tvTeknisi.text = "Teknisi: ${schedule.teknisi}"
+        holder.tvCustomerName.text = schedule.customerName
+        holder.tvTime.text = "Waktu: ${schedule.time}"
+        holder.tvTechnician.text = "Teknisi: ${schedule.technician}"
+
+        holder.btnEdit.setOnClickListener {
+            val intent = Intent(context, EditSchedulePage::class.java)
+            intent.putExtra("scheduleId", schedule.scheduleId)
+            context.startActivity(intent)
+        }
     }
 
     override fun getItemCount(): Int = scheduleList.size
 
     fun updateData(newList: List<Schedule>) {
-        scheduleList.clear()
-        scheduleList.addAll(newList)
+        scheduleList = newList
         notifyDataSetChanged()
     }
 }

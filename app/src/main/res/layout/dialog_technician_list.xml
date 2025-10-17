@@ -22,18 +22,20 @@
     <ListView
         android:id="@+id/listTechnicians"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="300dp"
         android:divider="@color/black"
         android:dividerHeight="0.5dp"
         android:scrollbars="vertical"
-        android:background="@android:color/white" />
+        android:background="@android:color/white"
+        android:paddingVertical="5dp"
+        android:clipToPadding="false" />
 
-    <!-- Cancel Button -->
+    <!-- Save Button -->
     <FrameLayout
-        android:id="@+id/btnCancel"
+        android:id="@+id/btnSave"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
+        android:layout_marginTop="20dp"
         android:paddingHorizontal="40dp"
         android:paddingVertical="10dp"
         android:background="@drawable/edit_button">
