@@ -1,0 +1,217 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@drawable/bglogin_pelanggan"
+    tools:context=".DashboardCustomer">
+
+    <!-- ===== SCROLLABLE MAIN CONTENT ===== -->
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true"
+        android:overScrollMode="never">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="10dp">
+
+            <!-- ===== HEADER ===== -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center"
+                android:paddingVertical="10dp">
+
+                <ImageView
+                    android:id="@+id/logoImage"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:src="@drawable/refro_logo2"
+                    android:contentDescription="@string/app_name" />
+            </LinearLayout>
+
+            <!-- ===== GREETING ===== -->
+            <TextView
+                android:id="@+id/cust_name"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Halo Bradley"
+                android:textSize="22sp"
+                android:fontFamily="@font/inter_bold"
+                android:layout_marginTop="10dp"
+                android:textColor="@color/black" />
+
+            <!-- ===== FORM FIELDS ===== -->
+            <EditText
+                android:id="@+id/etName"
+                style="@style/InputFieldStyle"
+                android:hint="Nama:" />
+
+            <EditText
+                android:id="@+id/etAddress"
+                style="@style/InputFieldStyle"
+                android:hint="Alamat:" />
+
+            <EditText
+                android:id="@+id/etDate"
+                style="@style/InputFieldStyle"
+                android:hint="Tanggal:"
+                android:focusable="false" />
+
+            <EditText
+                android:id="@+id/etTime"
+                style="@style/InputFieldStyle"
+                android:hint="Jam:"
+                android:focusable="false" />
+
+            <EditText
+                android:id="@+id/etMapLink"
+                style="@style/InputFieldStyle"
+                android:hint="Link Maps (opsional)" />
+
+            <EditText
+                android:id="@+id/etPhone"
+                style="@style/InputFieldStyle"
+                android:hint="Nomor Telp:" />
+
+            <!-- ===== AC UNIT SECTION ===== -->
+            <TextView
+                android:id="@+id/tvUnitLabel"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Unit:"
+                android:textSize="18sp"
+                android:fontFamily="@font/inter_bold"
+                android:textColor="@color/black"
+                android:layout_marginTop="15dp" />
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/recyclerACUnits"
+                android:layout_width="match_parent"
+                android:layout_height="250dp"
+                android:layout_marginBottom="10dp"
+                android:scrollbars="vertical"
+                android:nestedScrollingEnabled="true"
+                android:overScrollMode="always" />
+
+
+            <!-- ===== ADD & PESAN BUTTONS SIDE BY SIDE ===== -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center"
+                android:layout_marginTop="5dp"
+                android:layout_marginBottom="40dp">
+
+                <!-- ADD UNIT BUTTON -->
+                <FrameLayout
+                    android:id="@+id/btnAddUnit"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:background="@drawable/login_button"
+                    android:layout_marginEnd="8dp"
+                    android:paddingVertical="10dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Tambah Unit"
+                        android:textColor="@color/black"
+                        android:textSize="16sp"
+                        android:fontFamily="@font/inter_bold"
+                        android:layout_gravity="center" />
+                </FrameLayout>
+
+                <!-- PESAN BUTTON -->
+                <FrameLayout
+                    android:id="@+id/btnPesan"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:background="@drawable/login_button"
+                    android:paddingVertical="10dp"
+                    android:layout_marginStart="8dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Pesan"
+                        android:textSize="16sp"
+                        android:textColor="@color/black"
+                        android:fontFamily="@font/inter_bold"
+                        android:layout_gravity="center" />
+                </FrameLayout>
+            </LinearLayout>
+        </LinearLayout>
+    </ScrollView>
+
+    <!-- ===== BOTTOM NAVIGATION BAR (MOVED UP) ===== -->
+    <LinearLayout
+        android:id="@+id/bottomNav"
+        android:layout_width="match_parent"
+        android:layout_height="65dp"
+        android:orientation="horizontal"
+        android:background="@drawable/dialog_background"
+        android:gravity="center"
+        android:paddingHorizontal="40dp"
+        android:layout_marginBottom="100dp"
+        android:elevation="10dp">
+
+        <!-- HOME TAB -->
+        <LinearLayout
+            android:id="@+id/navHome"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <ImageView
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:src="@drawable/ic_home"
+                android:contentDescription="Home" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Beranda"
+                android:textSize="12sp"
+                android:textColor="@color/black"
+                android:fontFamily="@font/inter_bold" />
+        </LinearLayout>
+
+        <!-- HISTORY TAB -->
+        <LinearLayout
+            android:id="@+id/navHistory"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <ImageView
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:src="@drawable/ic_history"
+                android:contentDescription="History" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Riwayat"
+                android:textSize="12sp"
+                android:textColor="@color/black"
+                android:fontFamily="@font/inter_bold" />
+        </LinearLayout>
+    </LinearLayout>
+</LinearLayout>

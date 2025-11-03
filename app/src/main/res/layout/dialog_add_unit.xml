@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="20dp">
+
+    <!-- AC Brand -->
+    <EditText
+        android:id="@+id/etBrand"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Merk AC"
+        android:inputType="textCapWords"
+        android:background="@drawable/input_box_login"
+        android:padding="10dp"
+        android:layout_marginBottom="10dp" />
+
+    <!-- Unit PK -->
+    <EditText
+        android:id="@+id/etPK"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Jumlah PK"
+        android:inputType="numberDecimal"
+        android:background="@drawable/input_box_login"
+        android:padding="10dp"
+        android:layout_marginBottom="10dp" />
+
+    <!-- Dropdown for Type of Work -->
+    <Spinner
+        android:id="@+id/spinnerWorkType"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/input_box_login"
+        android:padding="10dp"
+        android:spinnerMode="dropdown" />
+</LinearLayout>

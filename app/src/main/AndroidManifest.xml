@@ -12,6 +12,9 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.RefroTech"
         tools:targetApi="31">
+        <activity
+            android:name=".DashboardCustomer"
+            android:exported="false" />
         <!-- Main entry point -->
         <activity
             android:name=".MainActivity"

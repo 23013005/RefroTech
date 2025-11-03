@@ -15,10 +15,10 @@
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:gravity="center">
+
         <ImageView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
             android:layout_gravity="center"
             android:layout_marginTop="40dp"
             android:background="@drawable/refro_logo2" />
@@ -29,6 +29,7 @@
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:gravity="center">
+
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -55,16 +56,17 @@
         android:orientation="vertical"
         android:gravity="center">
 
+        <!-- Changed hint only from 'Nama Pengguna' to Email -->
         <EditText
             android:id="@+id/username_input"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:background="@drawable/input_box_login"
-            android:hint="Nama Pengguna"
+            android:hint="Alamat Email"
             android:paddingStart="20dp"
             android:textSize="17sp"
             android:fontFamily="sans-serif-medium"
-            android:inputType="text"
+            android:inputType="textEmailAddress"
             android:textColor="@color/black"
             android:textColorHint="@color/text_grey"
             android:layout_marginTop="10dp"
@@ -91,12 +93,21 @@
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:gravity="center">
+
+        <TextView
+            android:id="@+id/forgot_info_text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Tekan dan tahan tombol Masuk untuk reset password"
+            android:textSize="12sp"
+            android:textColor="@color/black"
+            android:layout_marginTop="55dp"/>
         <FrameLayout
             android:id="@+id/login_button"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:background="@drawable/login_button"
-            android:layout_marginTop="70dp">
+            android:layout_marginTop="5dp">
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -107,6 +118,7 @@
                 android:textColor="@color/black"
                 android:layout_marginBottom="3dp"/>
         </FrameLayout>
+
     </LinearLayout>
 
     <LinearLayout
@@ -114,6 +126,7 @@
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:gravity="center">
+
         <FrameLayout
             android:id="@+id/register_button"
             android:layout_width="wrap_content"
