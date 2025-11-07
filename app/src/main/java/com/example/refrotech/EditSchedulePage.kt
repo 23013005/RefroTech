@@ -144,7 +144,7 @@ class EditSchedulePage : AppCompatActivity() {
             }
     }
 
-    // ===== Multi-select Technician Dialog (DATE-BASED availability) =====
+    // ===== Multi-select Technician Dialog (DATE + GLOBAL availability) =====
     private fun showTechnicianDialog() {
         if (scheduleDate.isNullOrEmpty()) {
             Toast.makeText(this, "Tanggal jadwal tidak ditemukan.", Toast.LENGTH_SHORT).show()
@@ -155,24 +155,22 @@ class EditSchedulePage : AppCompatActivity() {
         val selectedTechs = mutableSetOf<String>()
         val unavailableTechs = mutableSetOf<String>()
 
-        // Add current technicians to pre-selected list
         selectedTechs.addAll(currentTechnicians)
 
-        // Step 1: Fetch all schedules for the same date (except this one)
         db.collection("schedules")
             .whereEqualTo("date", scheduleDate)
             .get()
             .addOnSuccessListener { scheduleResult ->
                 for (doc in scheduleResult) {
-                    if (doc.id != scheduleId) { // exclude current schedule
+                    if (doc.id != scheduleId) {
                         val techNames = doc.getString("technician")?.split(",") ?: emptyList()
                         unavailableTechs.addAll(techNames.map { it.trim() })
                     }
                 }
 
-                // Step 2: Fetch all technicians
                 db.collection("users")
                     .whereEqualTo("role", "technician")
+                    .whereEqualTo("available", true)
                     .get()
                     .addOnSuccessListener { userResult ->
                         for (doc in userResult) {
@@ -210,7 +208,6 @@ class EditSchedulePage : AppCompatActivity() {
                                 nameView.text = name
                                 statusView.text = status
 
-                                // Allow selecting if available OR already in this schedule
                                 val canSelect = status == "Available" || selectedTechs.contains(name)
 
                                 if (canSelect) {

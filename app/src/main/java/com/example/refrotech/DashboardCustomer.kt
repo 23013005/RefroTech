@@ -1,5 +1,10 @@
 package com.example.refrotech
 
+import android.app.DatePickerDialog
+import android.app.TimePickerDialog
+import android.content.Intent
+import android.graphics.Color
+import android.net.Uri
 import android.os.Bundle
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
@@ -8,6 +13,8 @@ import androidx.recyclerview.widget.RecyclerView
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import java.text.SimpleDateFormat
+import java.util.*
 
 class DashboardCustomer : AppCompatActivity() {
 
@@ -20,6 +27,7 @@ class DashboardCustomer : AppCompatActivity() {
     private lateinit var recyclerACUnits: RecyclerView
     private lateinit var btnAddUnit: FrameLayout
     private lateinit var btnPesan: FrameLayout
+    private lateinit var btnOpenMaps: ImageView
 
     private lateinit var navHome: LinearLayout
     private lateinit var navHistory: LinearLayout
@@ -44,6 +52,7 @@ class DashboardCustomer : AppCompatActivity() {
         recyclerACUnits = findViewById(R.id.recyclerACUnits)
         btnAddUnit = findViewById(R.id.btnAddUnit)
         btnPesan = findViewById(R.id.btnPesan)
+        btnOpenMaps = findViewById(R.id.btnOpenMaps)
         navHome = findViewById(R.id.navHome)
         navHistory = findViewById(R.id.navHistory)
 
@@ -52,24 +61,89 @@ class DashboardCustomer : AppCompatActivity() {
         recyclerACUnits.layoutManager = LinearLayoutManager(this)
         recyclerACUnits.adapter = adapter
 
-        // === Add New Unit Button ===
+        // === Date and Time Picker ===
+        etDate.setOnClickListener { showDatePicker() }
+        etTime.setOnClickListener { showTimePicker() }
+
+        // === Open Google Maps ===
+        btnOpenMaps.setOnClickListener {
+            val address = etAddress.text.toString().trim()
+            val gmmIntentUri = if (address.isNotEmpty()) {
+                Uri.parse("geo:0,0?q=${Uri.encode(address)}")
+            } else {
+                Uri.parse("geo:0,0")
+            }
+            val mapIntent = Intent(Intent.ACTION_VIEW, gmmIntentUri)
+            mapIntent.setPackage("com.google.android.apps.maps")
+            startActivity(mapIntent)
+        }
+
+        // === Add Unit Button ===
         btnAddUnit.setOnClickListener {
             showAddUnitDialog()
         }
 
-        // === Submit Request to Firestore ===
+        // === Submit Request ===
         btnPesan.setOnClickListener {
             saveRequestToFirestore()
         }
 
-        // === Navigation Bar ===
+        // === Navigation ===
         navHome.setOnClickListener {
-            Toast.makeText(this, "Already on Home", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Sudah di halaman Beranda", Toast.LENGTH_SHORT).show()
         }
 
         navHistory.setOnClickListener {
-            Toast.makeText(this, "History page not ready yet", Toast.LENGTH_SHORT).show()
+            val intent = Intent(this, CustomerHistory::class.java)
+            startActivity(intent)
         }
+    }
+
+    // ===== Date Picker with Restrictions =====
+    private fun showDatePicker() {
+        val cal = Calendar.getInstance()
+        val datePicker = DatePickerDialog(
+            this,
+            { _, year, month, day ->
+                val selectedDate = Calendar.getInstance()
+                selectedDate.set(year, month, day)
+                val dayOfWeek = selectedDate.get(Calendar.DAY_OF_WEEK)
+
+                if (dayOfWeek == Calendar.SUNDAY) {
+                    Toast.makeText(this, "Tidak dapat memilih hari Minggu.", Toast.LENGTH_SHORT).show()
+                } else {
+                    val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+                    etDate.setText(sdf.format(selectedDate.time))
+                }
+            },
+            cal.get(Calendar.YEAR),
+            cal.get(Calendar.MONTH),
+            cal.get(Calendar.DAY_OF_MONTH)
+        )
+
+        // Minimum selectable date = tomorrow
+        val tomorrow = Calendar.getInstance()
+        tomorrow.add(Calendar.DAY_OF_YEAR, 1)
+        datePicker.datePicker.minDate = tomorrow.timeInMillis
+        datePicker.show()
+    }
+
+    // ===== Time Picker =====
+    private fun showTimePicker() {
+        val cal = Calendar.getInstance()
+        val timePicker = TimePickerDialog(
+            this,
+            { _, hour, minute ->
+                val sdf = SimpleDateFormat("HH:mm", Locale.getDefault())
+                cal.set(Calendar.HOUR_OF_DAY, hour)
+                cal.set(Calendar.MINUTE, minute)
+                etTime.setText(sdf.format(cal.time))
+            },
+            cal.get(Calendar.HOUR_OF_DAY),
+            cal.get(Calendar.MINUTE),
+            true
+        )
+        timePicker.show()
     }
 
     // ===== Dialog for Adding Unit =====
@@ -79,16 +153,15 @@ class DashboardCustomer : AppCompatActivity() {
         val etPK = dialogView.findViewById<EditText>(R.id.etPK)
         val spinnerWorkType = dialogView.findViewById<Spinner>(R.id.spinnerWorkType)
 
-        // Dropdown values
         val workTypes = listOf("Service", "Reparement", "Installation")
         val spinnerAdapter =
             ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, workTypes)
         spinnerWorkType.adapter = spinnerAdapter
 
         val dialog = android.app.AlertDialog.Builder(this)
-            .setTitle("Add AC Unit")
+            .setTitle("Tambah Unit AC")
             .setView(dialogView)
-            .setPositiveButton("Add") { _, _ ->
+            .setPositiveButton("Tambah") { _, _ ->
                 val brand = etBrand.text.toString().trim()
                 val pk = etPK.text.toString().trim()
                 val workType = spinnerWorkType.selectedItem.toString()
@@ -101,10 +174,10 @@ class DashboardCustomer : AppCompatActivity() {
                         recyclerACUnits.smoothScrollToPosition(acUnits.size - 1)
                     }
                 } else {
-                    Toast.makeText(this, "Please fill all fields", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, "Isi semua kolom unit terlebih dahulu", Toast.LENGTH_SHORT).show()
                 }
             }
-            .setNegativeButton("Cancel", null)
+            .setNegativeButton("Batal", null)
             .create()
 
         dialog.show()
@@ -122,16 +195,11 @@ class DashboardCustomer : AppCompatActivity() {
         if (name.isEmpty() || address.isEmpty() || date.isEmpty() ||
             time.isEmpty() || phone.isEmpty() || acUnits.isEmpty()
         ) {
-            Toast.makeText(
-                this,
-                "Please complete all fields and add at least one unit",
-                Toast.LENGTH_SHORT
-            ).show()
+            Toast.makeText(this, "Lengkapi semua data dan tambahkan minimal 1 unit.", Toast.LENGTH_SHORT).show()
             return
         }
 
         val userId = auth.currentUser?.uid ?: "UnknownUser"
-
         val unitsForFirestore = acUnits.map { unit ->
             mapOf(
                 "brand" to unit.brand,
@@ -156,14 +224,15 @@ class DashboardCustomer : AppCompatActivity() {
         db.collection("requests")
             .add(requestData)
             .addOnSuccessListener {
-                Toast.makeText(this, "Request sent successfully!", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Permintaan berhasil dikirim!", Toast.LENGTH_SHORT).show()
                 clearForm()
             }
             .addOnFailureListener { e ->
-                Toast.makeText(this, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Gagal: ${e.message}", Toast.LENGTH_SHORT).show()
             }
     }
 
+    // ===== Clear All Fields After Sending =====
     private fun clearForm() {
         etName.text.clear()
         etAddress.text.clear()

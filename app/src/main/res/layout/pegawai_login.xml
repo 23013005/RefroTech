@@ -9,26 +9,30 @@
     android:orientation="vertical"
     tools:context=".activity_pegawai_login">
 
+    <!-- ===== HEADER LOGO ===== -->
     <LinearLayout
         android:id="@+id/Header"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:gravity="center">
+
         <ImageView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
             android:layout_gravity="center"
             android:layout_marginTop="40dp"
-            android:background="@drawable/refro_logo2" />
+            android:background="@drawable/refro_logo2"
+            android:contentDescription="@string/app_name" />
     </LinearLayout>
 
+    <!-- ===== GREETING TEXT ===== -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:gravity="center">
+
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -49,27 +53,30 @@
             android:fontFamily="@font/inter_bold" />
     </LinearLayout>
 
+    <!-- ===== INPUT FIELDS ===== -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:gravity="center">
 
+        <!-- USERNAME -->
         <EditText
             android:id="@+id/username_input"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:background="@drawable/input_box_login"
-            android:hint="Alamat Email"
+            android:hint="Username"
             android:paddingStart="20dp"
             android:textSize="17sp"
             android:fontFamily="sans-serif-medium"
-            android:inputType="textEmailAddress"
+            android:inputType="textPersonName"
             android:textColor="@color/black"
             android:textColorHint="@color/text_grey"
             android:layout_marginTop="10dp"
             android:gravity="center_vertical"/>
 
+        <!-- PASSWORD -->
         <EditText
             android:id="@+id/password_input"
             android:layout_width="wrap_content"
@@ -86,6 +93,7 @@
             android:gravity="center_vertical"/>
     </LinearLayout>
 
+    <!-- ===== LOGIN BUTTON ===== -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -98,6 +106,7 @@
             android:layout_height="wrap_content"
             android:background="@drawable/login_button"
             android:layout_marginTop="40dp">
+
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -110,6 +119,7 @@
         </FrameLayout>
     </LinearLayout>
 
+    <!-- ===== SWITCH TO CUSTOMER LOGIN ===== -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

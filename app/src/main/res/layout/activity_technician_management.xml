@@ -1,12 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:background="@drawable/bglogin_pelanggan"
-    tools:context=".leader_dashboard">
+    tools:context=".TechnicianManagement">
 
     <!-- ===== SCROLLABLE MAIN CONTENT ===== -->
     <ScrollView
@@ -21,79 +20,42 @@
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:gravity="center_horizontal"
-            android:paddingBottom="20dp">
+            android:padding="20dp">
 
             <!-- ===== HEADER ===== -->
-            <LinearLayout
-                android:id="@+id/Header"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="center"
-                android:orientation="vertical">
-
-                <ImageView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="40dp"
-                    android:background="@drawable/refro_logo2"
-                    android:contentDescription="@string/app_name" />
-            </LinearLayout>
-
-            <!-- ===== PAGE TITLE ===== -->
-            <TextView
-                android:id="@+id/dashboardTitle"
+            <ImageView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Dashboard Pemimpin"
-                android:textSize="25sp"
+                android:layout_marginTop="40dp"
+                android:background="@drawable/refro_logo2"
+                android:contentDescription="@string/app_name" />
+
+            <!-- ===== TITLE ===== -->
+            <TextView
+                android:id="@+id/pageTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Manajemen Teknisi"
+                android:textSize="24sp"
                 android:textColor="@color/black"
                 android:fontFamily="@font/inter_bold"
-                android:layout_marginTop="30dp"
-                android:gravity="center" />
+                android:layout_marginTop="20dp" />
 
-            <!-- ===== CALENDAR ===== -->
-            <com.prolificinteractive.materialcalendarview.MaterialCalendarView
-                android:id="@+id/calendarView"
+            <!-- ===== RECYCLER VIEW ===== -->
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/recyclerTechnicians"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="15dp"
+                android:scrollbars="vertical"
+                android:nestedScrollingEnabled="true" />
+
+            <!-- ===== ADD TECHNICIAN BUTTON ===== -->
+            <FrameLayout
+                android:id="@+id/btnAddTechnician"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="25dp"
-                android:layout_marginHorizontal="20dp"
-                android:background="@drawable/calender_background"
-                app:mcv_showOtherDates="all"
-                app:mcv_selectionColor="#43A047"
-                app:mcv_tileSize="45dp"
-                android:elevation="5dp"
-                android:padding="5dp" />
-
-            <!-- ===== SELECTED DATE ===== -->
-            <TextView
-                android:id="@+id/tvSelectedDate"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="20dp"
-                android:layout_marginStart="40dp"
-                android:text="Pilih tanggal untuk melihat jadwal"
-                android:textColor="@color/black"
-                android:textSize="16sp"
-                android:fontFamily="@font/inter_bold" />
-
-            <!-- ===== SCHEDULE LIST ===== -->
-            <com.example.refrotech.ExpandedRecyclerView
-                android:id="@+id/recyclerSchedules"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
-                android:layout_marginHorizontal="20dp"
-                android:nestedScrollingEnabled="false"
-                android:overScrollMode="never" />
-
-            <!-- ===== ADD SCHEDULE BUTTON (MATCHING CUSTOMER DASHBOARD) ===== -->
-            <FrameLayout
-                android:id="@+id/btnAddSchedule"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginHorizontal="120dp"
-                android:layout_marginTop="15dp"
                 android:layout_marginBottom="40dp"
                 android:background="@drawable/login_button"
                 android:paddingVertical="10dp">
@@ -101,17 +63,16 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Tambah Jadwal"
+                    android:text="Tambah Teknisi"
                     android:textColor="@color/black"
                     android:textSize="16sp"
                     android:fontFamily="@font/inter_bold"
                     android:layout_gravity="center" />
             </FrameLayout>
-
         </LinearLayout>
     </ScrollView>
 
-    <!-- ===== STATIC BOTTOM NAVIGATION BAR ===== -->
+    <!-- ===== STATIC NAVIGATION BAR ===== -->
     <LinearLayout
         android:id="@+id/bottomNav"
         android:layout_width="match_parent"

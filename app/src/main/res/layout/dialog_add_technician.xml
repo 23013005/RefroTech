@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="20dp"
+    android:background="@android:color/white">
+
+    <!-- Technician Name -->
+    <EditText
+        android:id="@+id/etTechnicianName"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Nama Teknisi"
+        android:inputType="textPersonName"
+        android:background="@drawable/input_box_login"
+        android:padding="10dp"
+        android:textColor="@android:color/black"
+        android:textColorHint="#888888"
+        android:layout_marginBottom="10dp" />
+
+    <!-- Technician Email -->
+    <EditText
+        android:id="@+id/etTechnicianEmail"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Email Teknisi"
+        android:inputType="textEmailAddress"
+        android:background="@drawable/input_box_login"
+        android:padding="10dp"
+        android:textColor="@android:color/black"
+        android:textColorHint="#888888"
+        android:layout_marginBottom="10dp" />
+
+    <!-- Technician Password -->
+    <EditText
+        android:id="@+id/etTechnicianPassword"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Password Teknisi"
+        android:inputType="textPassword"
+        android:background="@drawable/input_box_login"
+        android:padding="10dp"
+        android:textColor="@android:color/black"
+        android:textColorHint="#888888"
+        android:layout_marginBottom="10dp" />
+
+</LinearLayout>

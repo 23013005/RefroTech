@@ -4,10 +4,10 @@
     <selectionStates>
       <SelectionState runConfigName="RefroTech">
         <option name="selectionMode" value="DROPDOWN" />
-        <DropdownSelection timestamp="2025-10-14T10:26:16.036234300Z">
+        <DropdownSelection timestamp="2025-11-07T05:00:51.756527600Z">
           <Target type="DEFAULT_BOOT">
             <handle>
-              <DeviceId pluginId="PhysicalDevice" identifier="serial=PN9PWGONGMMVQKLZ" />
+              <DeviceId pluginId="LocalEmulator" identifier="path=C:\Users\USER\.android\avd\Pixel_7_2.avd" />
             </handle>
           </Target>
         </DropdownSelection>

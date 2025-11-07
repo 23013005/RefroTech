@@ -2,12 +2,13 @@ package com.example.refrotech
 
 import android.content.Intent
 import android.os.Bundle
+import android.widget.FrameLayout
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.prolificinteractive.materialcalendarview.MaterialCalendarView
@@ -18,12 +19,14 @@ class leader_dashboard : AppCompatActivity() {
     private lateinit var calendarView: MaterialCalendarView
     private lateinit var tvSelectedDate: TextView
     private lateinit var recyclerSchedules: RecyclerView
-    private lateinit var fabAddSchedule: FloatingActionButton
+    private lateinit var btnAddSchedule: FrameLayout
+
+    private lateinit var navDashboard: LinearLayout
+    private lateinit var navTechnician: LinearLayout
+    private lateinit var navRequests: LinearLayout
 
     private lateinit var scheduleAdapter: ScheduleAdapter
     private lateinit var db: FirebaseFirestore
-
-    // Track currently selected date and listener
     private var selectedDateStr: String? = null
     private var scheduleListener: ListenerRegistration? = null
 
@@ -31,11 +34,15 @@ class leader_dashboard : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_leader_dashboard)
 
-        // Initialize views
+        // === Initialize Views ===
         calendarView = findViewById(R.id.calendarView)
         tvSelectedDate = findViewById(R.id.tvSelectedDate)
         recyclerSchedules = findViewById(R.id.recyclerSchedules)
-        fabAddSchedule = findViewById(R.id.fabAddSchedule)
+        btnAddSchedule = findViewById(R.id.btnAddSchedule)
+
+        navDashboard = findViewById(R.id.navDashboard)
+        navTechnician = findViewById(R.id.navTechnician)
+        navRequests = findViewById(R.id.navRequests)
 
         recyclerSchedules.layoutManager = LinearLayoutManager(this)
         scheduleAdapter = ScheduleAdapter(this, emptyList())
@@ -43,9 +50,8 @@ class leader_dashboard : AppCompatActivity() {
 
         db = FirebaseFirestore.getInstance()
 
-        // ===== FAB: Add Schedule =====
-        fabAddSchedule.setImageResource(R.drawable.ic_add)
-        fabAddSchedule.setOnClickListener {
+        // === Add Schedule Button ===
+        btnAddSchedule.setOnClickListener {
             if (selectedDateStr.isNullOrBlank()) {
                 Toast.makeText(this, "Silakan pilih tanggal terlebih dahulu.", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
@@ -55,7 +61,7 @@ class leader_dashboard : AppCompatActivity() {
             startActivity(intent)
         }
 
-        // ===== Calendar interaction =====
+        // === Calendar Date Selection ===
         calendarView.setOnDateChangedListener(OnDateSelectedListener { _, date, _ ->
             val selectedDateDisplay = "${date.day}-${date.month}-${date.year}"
             tvSelectedDate.text = "Jadwal untuk $selectedDateDisplay"
@@ -63,11 +69,25 @@ class leader_dashboard : AppCompatActivity() {
             selectedDateStr = String.format("%04d-%02d-%02d", date.year, date.month + 1, date.day)
             listenToSchedulesForDate(selectedDateStr!!)
         })
+
+        // === Navigation Bar ===
+        navDashboard.setOnClickListener {
+            Toast.makeText(this, "Sudah di halaman Dashboard", Toast.LENGTH_SHORT).show()
+        }
+
+        navTechnician.setOnClickListener {
+            val intent = Intent(this, TechnicianManagement::class.java)
+            startActivity(intent)
+            overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
+        }
+
+        navRequests.setOnClickListener {
+            Toast.makeText(this, "Halaman Konfirmasi Permintaan belum siap", Toast.LENGTH_SHORT).show()
+        }
     }
 
     // ===== Real-time Firestore Listener =====
     private fun listenToSchedulesForDate(dateStr: String) {
-        // Stop any previous listener
         scheduleListener?.remove()
 
         scheduleListener = db.collection("schedules")
@@ -99,14 +119,12 @@ class leader_dashboard : AppCompatActivity() {
 
     override fun onStop() {
         super.onStop()
-        // Remove listener to prevent memory leaks
         scheduleListener?.remove()
         scheduleListener = null
     }
 
     override fun onResume() {
         super.onResume()
-        // Reconnect listener when returning to dashboard
         selectedDateStr?.let { listenToSchedulesForDate(it) }
     }
 }
