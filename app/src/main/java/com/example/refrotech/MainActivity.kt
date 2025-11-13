@@ -7,6 +7,7 @@ import android.graphics.drawable.RippleDrawable
 import android.os.Bundle
 import android.widget.EditText
 import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
@@ -23,6 +24,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var loginButton: FrameLayout
     private lateinit var registerButton: FrameLayout
     private lateinit var empLoginButton: FrameLayout
+    private var isPasswordVisible = false   // 👈 added
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -31,15 +33,37 @@ class MainActivity : AppCompatActivity() {
         auth = FirebaseAuth.getInstance()
         db = FirebaseFirestore.getInstance()
 
-        emailInput = findViewById(R.id.username_input) // used as email
+        emailInput = findViewById(R.id.username_input)
         passwordInput = findViewById(R.id.password_input)
         loginButton = findViewById(R.id.login_button)
         registerButton = findViewById(R.id.register_button)
         empLoginButton = findViewById(R.id.emp_login_page_button)
 
+        val togglePassword = findViewById<ImageView>(R.id.btnTogglePassword) // 👈 added
+
         applyRippleEffect(loginButton)
         applyRippleEffect(registerButton)
         applyRippleEffect(empLoginButton)
+
+        // ===== Password Visibility Toggle =====
+        togglePassword.setOnClickListener {
+            isPasswordVisible = !isPasswordVisible
+
+            if (isPasswordVisible) {
+                // SHOW PASSWORD
+                passwordInput.transformationMethod =
+                    android.text.method.HideReturnsTransformationMethod.getInstance()
+                togglePassword.setImageResource(R.drawable.ic_eye_open)
+            } else {
+                // HIDE PASSWORD
+                passwordInput.transformationMethod =
+                    android.text.method.PasswordTransformationMethod.getInstance()
+                togglePassword.setImageResource(R.drawable.ic_eye_closed)
+            }
+
+            passwordInput.setSelection(passwordInput.text.length) // keep cursor at end
+        }
+
 
         registerButton.setOnClickListener {
             startActivity(Intent(this, Register::class.java))
@@ -72,7 +96,6 @@ class MainActivity : AppCompatActivity() {
                 if (user != null && user.isEmailVerified) {
                     Toast.makeText(this, "Login berhasil!", Toast.LENGTH_SHORT).show()
 
-                    // ✅ Navigate to Customer Dashboard
                     val intent = Intent(this, DashboardCustomer::class.java)
                     intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
                     startActivity(intent)
@@ -109,7 +132,6 @@ class MainActivity : AppCompatActivity() {
                     return@setPositiveButton
                 }
 
-                // ✅ Only allow customer accounts to reset password
                 db.collection("users")
                     .whereEqualTo("email", email)
                     .whereEqualTo("role", "customer")

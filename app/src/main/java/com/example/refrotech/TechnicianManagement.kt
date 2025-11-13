@@ -2,9 +2,11 @@ package com.example.refrotech
 
 import android.app.AlertDialog
 import android.os.Bundle
+import android.text.InputType
 import android.view.LayoutInflater
 import android.widget.EditText
 import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -78,27 +80,32 @@ class TechnicianManagement : AppCompatActivity() {
             }
     }
 
+    // ========= ADD TECHNICIAN =========
     private fun showAddTechnicianDialog() {
         val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_add_technician, null)
+
         val etName = dialogView.findViewById<EditText>(R.id.etTechnicianName)
-        val etUsername = dialogView.findViewById<EditText>(R.id.etTechnicianEmail)
-        etUsername.hint = "Username Teknisi"
+        val etUsername = dialogView.findViewById<EditText>(R.id.etTechnicianUsername)
+        val etPassword = dialogView.findViewById<EditText>(R.id.etTechnicianPassword)
+        val toggleBtn = dialogView.findViewById<ImageView>(R.id.btnTogglePassword)
 
-        val etPassword = EditText(this).apply {
-            hint = "Kata Sandi"
-            inputType = android.text.InputType.TYPE_CLASS_TEXT
-        }
+        var isVisible = false
 
-        val container = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            addView(dialogView)
-            addView(etPassword)
-            setPadding(50, 20, 50, 10)
+        toggleBtn.setOnClickListener {
+            isVisible = !isVisible
+            if (isVisible) {
+                etPassword.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
+                toggleBtn.setImageResource(R.drawable.ic_eye_open)
+            } else {
+                etPassword.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+                toggleBtn.setImageResource(R.drawable.ic_eye_closed)
+            }
+            etPassword.setSelection(etPassword.text.length)
         }
 
         AlertDialog.Builder(this)
             .setTitle("Tambah Teknisi")
-            .setView(container)
+            .setView(dialogView)
             .setPositiveButton("Tambah") { _, _ ->
                 val name = etName.text.toString().trim()
                 val username = etUsername.text.toString().trim()
@@ -130,30 +137,36 @@ class TechnicianManagement : AppCompatActivity() {
             .show()
     }
 
+    // ========= EDIT TECHNICIAN =========
     private fun showEditDialog(technician: Technician) {
         val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_add_technician, null)
+
         val etName = dialogView.findViewById<EditText>(R.id.etTechnicianName)
-        val etUsername = dialogView.findViewById<EditText>(R.id.etTechnicianEmail)
-        etUsername.hint = "Username Teknisi"
-        val etPassword = EditText(this).apply {
-            hint = "Kata Sandi"
-            inputType = android.text.InputType.TYPE_CLASS_TEXT
-            setText(technician.password)
-        }
+        val etUsername = dialogView.findViewById<EditText>(R.id.etTechnicianUsername)
+        val etPassword = dialogView.findViewById<EditText>(R.id.etTechnicianPassword)
+        val toggleBtn = dialogView.findViewById<ImageView>(R.id.btnTogglePassword)
 
         etName.setText(technician.name)
         etUsername.setText(technician.username)
+        etPassword.setText(technician.password)
 
-        val container = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            addView(dialogView)
-            addView(etPassword)
-            setPadding(50, 20, 50, 10)
+        var isVisible = false
+
+        toggleBtn.setOnClickListener {
+            isVisible = !isVisible
+            if (isVisible) {
+                etPassword.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
+                toggleBtn.setImageResource(R.drawable.ic_eye_open)
+            } else {
+                etPassword.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+                toggleBtn.setImageResource(R.drawable.ic_eye_closed)
+            }
+            etPassword.setSelection(etPassword.text.length)
         }
 
         AlertDialog.Builder(this)
             .setTitle("Edit Teknisi")
-            .setView(container)
+            .setView(dialogView)
             .setPositiveButton("Simpan") { _, _ ->
                 val updatedName = etName.text.toString().trim()
                 val updatedUsername = etUsername.text.toString().trim()

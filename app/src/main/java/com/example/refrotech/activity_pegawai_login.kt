@@ -7,6 +7,7 @@ import android.graphics.drawable.RippleDrawable
 import android.os.Bundle
 import android.widget.EditText
 import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.google.firebase.firestore.FirebaseFirestore
@@ -18,6 +19,7 @@ class activity_pegawai_login : AppCompatActivity() {
     private lateinit var passwordInput: EditText
     private lateinit var loginButton: FrameLayout
     private lateinit var custLoginButton: FrameLayout
+    private var isPasswordVisible = false   // 👈 added
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -30,8 +32,30 @@ class activity_pegawai_login : AppCompatActivity() {
         loginButton = findViewById(R.id.login_button)
         custLoginButton = findViewById(R.id.cust_login_page_button)
 
+        val togglePassword = findViewById<ImageView>(R.id.btnTogglePassword) // 👈 added
+
         applyRippleEffect(loginButton)
         applyRippleEffect(custLoginButton)
+
+        // ===== Password Visibility Toggle =====
+        togglePassword.setOnClickListener {
+            isPasswordVisible = !isPasswordVisible
+
+            if (isPasswordVisible) {
+                // SHOW PASSWORD
+                passwordInput.transformationMethod =
+                    android.text.method.HideReturnsTransformationMethod.getInstance()
+                togglePassword.setImageResource(R.drawable.ic_eye_open)
+            } else {
+                // HIDE PASSWORD
+                passwordInput.transformationMethod =
+                    android.text.method.PasswordTransformationMethod.getInstance()
+                togglePassword.setImageResource(R.drawable.ic_eye_closed)
+            }
+
+            passwordInput.setSelection(passwordInput.text.length) // keep cursor at end
+        }
+
 
         custLoginButton.setOnClickListener {
             startActivity(Intent(this, MainActivity::class.java))
