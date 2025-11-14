@@ -1,78 +1,103 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/activity_technician_management_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:background="@drawable/bglogin_pelanggan"
     tools:context=".TechnicianManagement">
 
-    <!-- ===== SCROLLABLE MAIN CONTENT ===== -->
-    <ScrollView
+    <!-- HEADER / LOGO -->
+    <LinearLayout
+        android:id="@+id/Header"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:paddingTop="20dp"
+        android:paddingBottom="8dp">
+
+        <ImageView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/refro_logo2"
+            android:contentDescription="@string/app_name" />
+    </LinearLayout>
+
+    <!-- PAGE TITLE -->
+    <TextView
+        android:id="@+id/tvTechMgmtTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Akun Teknisi"
+        android:textSize="22sp"
+        android:textColor="@color/black"
+        android:fontFamily="@font/inter_bold"
+        android:gravity="center"
+        android:paddingTop="6dp"
+        android:paddingBottom="6dp" />
+
+    <!-- SCROLLABLE CONTENT -->
+    <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:fillViewport="true"
-        android:overScrollMode="never">
+        android:overScrollMode="never"
+        android:fillViewport="true">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:gravity="center_horizontal"
-            android:padding="20dp">
+            android:paddingHorizontal="16dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="12dp">
 
-            <!-- ===== HEADER ===== -->
-            <ImageView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="40dp"
-                android:background="@drawable/refro_logo2"
-                android:contentDescription="@string/app_name" />
-
-            <!-- ===== TITLE ===== -->
-            <TextView
-                android:id="@+id/pageTitle"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Manajemen Teknisi"
-                android:textSize="24sp"
-                android:textColor="@color/black"
-                android:fontFamily="@font/inter_bold"
-                android:layout_marginTop="20dp" />
-
-            <!-- ===== RECYCLER VIEW ===== -->
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/recyclerTechnicians"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="15dp"
-                android:scrollbars="vertical"
-                android:nestedScrollingEnabled="true" />
-
-            <!-- ===== ADD TECHNICIAN BUTTON ===== -->
+            <!-- Add Technician button (centered and full width-ish) -->
             <FrameLayout
                 android:id="@+id/btnAddTechnician"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="25dp"
-                android:layout_marginBottom="40dp"
+                android:layout_height="48dp"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="12dp"
                 android:background="@drawable/login_button"
-                android:paddingVertical="10dp">
+                android:paddingVertical="6dp">
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Tambah Teknisi"
-                    android:textColor="@color/black"
+                    android:layout_gravity="center"
                     android:textSize="16sp"
                     android:fontFamily="@font/inter_bold"
-                    android:layout_gravity="center" />
+                    android:textColor="@color/black" />
             </FrameLayout>
-        </LinearLayout>
-    </ScrollView>
 
-    <!-- ===== STATIC NAVIGATION BAR ===== -->
+            <!-- Recycler for technicians -->
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/recyclerTechnicians"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:nestedScrollingEnabled="false"
+                android:overScrollMode="never"
+                android:clipToPadding="false" />
+
+            <!-- optional empty-state -->
+            <TextView
+                android:id="@+id/tvNoTechnicians"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="No technicians yet."
+                android:visibility="gone"
+                android:gravity="center"
+                android:paddingTop="18dp"
+                android:textColor="@android:color/darker_gray" />
+
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+
+    <!-- BOTTOM NAVIGATION (UNIFIED STYLE) -->
     <LinearLayout
         android:id="@+id/bottomNav"
         android:layout_width="match_parent"
@@ -83,7 +108,7 @@
         android:paddingHorizontal="40dp"
         android:elevation="10dp">
 
-        <!-- DASHBOARD TAB -->
+        <!-- DASHBOARD -->
         <LinearLayout
             android:id="@+id/navDashboard"
             android:layout_width="0dp"
@@ -107,7 +132,7 @@
                 android:fontFamily="@font/inter_bold" />
         </LinearLayout>
 
-        <!-- TECHNICIAN TAB -->
+        <!-- TECHNICIAN -->
         <LinearLayout
             android:id="@+id/navTechnician"
             android:layout_width="0dp"
@@ -131,7 +156,7 @@
                 android:fontFamily="@font/inter_bold" />
         </LinearLayout>
 
-        <!-- REQUEST TAB -->
+        <!-- REQUESTS -->
         <LinearLayout
             android:id="@+id/navRequests"
             android:layout_width="0dp"
@@ -154,5 +179,7 @@
                 android:textColor="@color/black"
                 android:fontFamily="@font/inter_bold" />
         </LinearLayout>
+
     </LinearLayout>
+
 </LinearLayout>
