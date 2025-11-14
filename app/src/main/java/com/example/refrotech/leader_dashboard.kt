@@ -8,7 +8,6 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.prolificinteractive.materialcalendarview.MaterialCalendarView
@@ -18,7 +17,7 @@ class leader_dashboard : AppCompatActivity() {
 
     private lateinit var calendarView: MaterialCalendarView
     private lateinit var tvSelectedDate: TextView
-    private lateinit var recyclerSchedules: RecyclerView
+    private lateinit var recyclerSchedules: com.example.refrotech.ExpandedRecyclerView
     private lateinit var btnAddSchedule: FrameLayout
 
     private lateinit var navDashboard: LinearLayout
@@ -66,7 +65,9 @@ class leader_dashboard : AppCompatActivity() {
             val selectedDateDisplay = "${date.day}-${date.month}-${date.year}"
             tvSelectedDate.text = "Jadwal untuk $selectedDateDisplay"
 
-            selectedDateStr = String.format("%04d-%02d-%02d", date.year, date.month + 1, date.day)
+            // MaterialCalendarView.month is 1..12 (not zero-based). Use month directly.
+            // Build ISO date yyyy-MM-dd
+            selectedDateStr = String.format("%04d-%02d-%02d", date.year, date.month, date.day)
             listenToSchedulesForDate(selectedDateStr!!)
         })
 
@@ -81,8 +82,11 @@ class leader_dashboard : AppCompatActivity() {
             overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
         }
 
+        // === NAVIGATE TO LEADER CONFIRMATION PAGE ===
         navRequests.setOnClickListener {
-            Toast.makeText(this, "Halaman Konfirmasi Permintaan belum siap", Toast.LENGTH_SHORT).show()
+            val intent = Intent(this, LeaderConfirmationActivity::class.java)
+            startActivity(intent)
+            overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
         }
     }
 
@@ -106,7 +110,7 @@ class leader_dashboard : AppCompatActivity() {
 
                 val schedules = snapshots.map { doc ->
                     Schedule(
-                        customerName = doc.getString("customerName") ?: "Tanpa Nama",
+                        customerName = doc.getString("customerName") ?: (doc.getString("name") ?: "Tanpa Nama"),
                         time = doc.getString("time") ?: "-",
                         technician = doc.getString("technician") ?: "-",
                         scheduleId = doc.id

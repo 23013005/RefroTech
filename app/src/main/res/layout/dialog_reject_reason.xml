@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:padding="20dp"
+    android:background="@drawable/dialog_background"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Select Rejection Reason"
+        android:textSize="18dp"
+        android:textStyle="bold"
+        android:layout_marginBottom="12dp"/>
+
+    <RadioGroup
+        android:id="@+id/radioRejectReasons"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <RadioButton
+            android:id="@+id/rbTechUnavailable"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Teknisi Tidak Tersedia"/>
+
+        <RadioButton
+            android:id="@+id/rbCustomerUnreachable"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Jadwal Penuh"/>
+
+        <RadioButton
+            android:id="@+id/rbWrongAddress"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Wrong address"/>
+
+        <RadioButton
+            android:id="@+id/rbOther"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Lainnya"/>
+    </RadioGroup>
+
+    <EditText
+        android:id="@+id/edtOtherReason"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Enter custom reason"
+        android:layout_marginTop="10dp"
+        android:padding="12dp"
+        android:background="@drawable/input_box_login"/>
+</LinearLayout>

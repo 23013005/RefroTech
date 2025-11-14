@@ -1,79 +1,147 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/itemHistoryRoot"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:background="@drawable/dialog_background"
     android:padding="12dp"
-    android:layout_marginBottom="10dp"
-    android:elevation="4dp">
+    android:background="@drawable/dialog_background"
+    android:layout_marginBottom="10dp">
 
-    <TextView
-        android:id="@+id/tvRequestAddress"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Alamat: Jl. Contoh No.1"
-        android:textSize="16sp"
-        android:textColor="@color/black"
-        android:fontFamily="@font/inter_bold" />
-
-    <TextView
-        android:id="@+id/tvRequestDate"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Tanggal: 01/01/2025"
-        android:textSize="14sp"
-        android:textColor="@color/black" />
-
-    <TextView
-        android:id="@+id/tvRequestTime"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Jam: 10:00"
-        android:textSize="14sp"
-        android:textColor="@color/black"
-        android:layout_marginBottom="8dp" />
-
-    <!-- STATUS BADGE -->
-    <TextView
-        android:id="@+id/tvRequestStatus"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Pending"
-        android:background="#FFE082"
-    android:textColor="@color/black"
-    android:paddingHorizontal="12dp"
-    android:paddingVertical="4dp"
-    android:fontFamily="@font/inter_bold"
-    android:layout_marginBottom="8dp"
-    android:layout_gravity="start"
-    android:radius="8dp" />
-
-    <!-- ACTION BUTTONS -->
+    <!-- Header row: customer name + status -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:gravity="end">
+        android:gravity="center_vertical">
 
-        <Button
-            android:id="@+id/btnCancel"
+        <TextView
+            android:id="@+id/tvHistName"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:text="Customer Name"
+            android:textStyle="bold"
+            android:textSize="16sp"
+            android:textColor="@android:color/black" />
+
+        <TextView
+            android:id="@+id/tvHistStatus"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Batalkan"
-            android:textSize="14sp"
-            android:textColor="@color/white"
-            android:backgroundTint="#E53935"
-            android:layout_marginEnd="8dp" />
+            android:text="Pending"
+            android:layout_gravity="center"
+            android:textStyle="bold"
+            android:textSize="12sp"
+            android:padding="15dp"
+            android:background="@drawable/button_light_green"
+            android:textColor="@android:color/black" />
+    </LinearLayout>
 
-        <Button
+    <!-- Address / Date / Time -->
+    <TextView
+        android:id="@+id/tvHistAddress"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Address here"
+        android:layout_marginTop="6dp"
+        android:textColor="@android:color/black" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="6dp">
+
+        <TextView
+            android:id="@+id/tvHistDate"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="01/01/2025" />
+
+        <TextView
+            android:id="@+id/tvHistTime"
+            android:layout_marginStart="12dp"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="10:00" />
+    </LinearLayout>
+
+    <!-- Unit summary (simple) -->
+    <TextView
+        android:id="@+id/tvHistUnits"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="1 unit • Service"
+        android:layout_marginTop="8dp" />
+
+    <!-- Action buttons -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="10dp"
+        android:gravity="center">
+
+        <!-- Edit request -->
+        <FrameLayout
+            android:id="@+id/btnEditRequest"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="44dp"
+            android:background="@drawable/login_button"
+            android:padding="8dp"
+            android:layout_marginEnd="8dp">
+
+            <TextView
+                android:id="@+id/tvBtnEdit"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Edit"
+                android:textColor="@android:color/black"
+                android:layout_gravity="center"
+                android:textStyle="bold"/>
+        </FrameLayout>
+
+        <!-- Change schedule -->
+        <FrameLayout
             android:id="@+id/btnChangeSchedule"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Ubah Jadwal"
-            android:textSize="14sp"
-            android:textColor="@color/white"
-            android:backgroundTint="#43A047" />
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="44dp"
+            android:background="@drawable/login_button"
+            android:padding="8dp"
+            android:layout_marginEnd="8dp">
+
+            <TextView
+                android:id="@+id/tvBtnChange"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Reschedule"
+                android:textColor="@android:color/black"
+                android:layout_gravity="center"
+                android:textStyle="bold"/>
+        </FrameLayout>
+
+        <!-- Cancel request -->
+        <FrameLayout
+            android:id="@+id/btnCancelRequest"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="44dp"
+            android:background="@drawable/login_button"
+            android:padding="8dp">
+
+            <TextView
+                android:id="@+id/tvBtnCancel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Cancel"
+                android:textColor="@android:color/black"
+                android:layout_gravity="center"
+                android:textStyle="bold"/>
+        </FrameLayout>
+
     </LinearLayout>
 
 </LinearLayout>

@@ -3,7 +3,6 @@ package com.example.refrotech
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
 import android.content.Intent
-import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
 import android.widget.*
@@ -11,7 +10,6 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import java.text.SimpleDateFormat
 import java.util.*
@@ -112,6 +110,7 @@ class DashboardCustomer : AppCompatActivity() {
                 if (dayOfWeek == Calendar.SUNDAY) {
                     Toast.makeText(this, "Tidak dapat memilih hari Minggu.", Toast.LENGTH_SHORT).show()
                 } else {
+                    // Keep original UI format (dd/MM/yyyy) but we convert to ISO when saving
                     val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
                     etDate.setText(sdf.format(selectedDate.time))
                 }
@@ -185,26 +184,39 @@ class DashboardCustomer : AppCompatActivity() {
 
     // ===== Save Request to Firestore =====
     private fun saveRequestToFirestore() {
+        val userId = auth.currentUser?.uid
+        if (userId == null) {
+            Toast.makeText(this, "Please login first", Toast.LENGTH_SHORT).show()
+            return
+        }
+
         val name = etName.text.toString().trim()
         val address = etAddress.text.toString().trim()
-        val date = etDate.text.toString().trim()
+        val dateInputRaw = etDate.text.toString().trim() // could be dd/MM/yyyy or yyyy-MM-dd
         val time = etTime.text.toString().trim()
         val mapLink = etMapLink.text.toString().trim()
         val phone = etPhone.text.toString().trim()
 
-        if (name.isEmpty() || address.isEmpty() || date.isEmpty() ||
-            time.isEmpty() || phone.isEmpty() || acUnits.isEmpty()
-        ) {
-            Toast.makeText(this, "Lengkapi semua data dan tambahkan minimal 1 unit.", Toast.LENGTH_SHORT).show()
+        if (name.isEmpty() || address.isEmpty() || dateInputRaw.isEmpty() || time.isEmpty()) {
+            Toast.makeText(this, "Please fill required fields", Toast.LENGTH_SHORT).show()
             return
         }
 
-        val userId = auth.currentUser?.uid ?: "UnknownUser"
-        val unitsForFirestore = acUnits.map { unit ->
+        // convert date to ISO yyyy-MM-dd if needed
+        val isoDate = try {
+            if (dateInputRaw.contains("/")) {
+                TimeUtils.toIsoDate(dateInputRaw)
+            } else dateInputRaw
+        } catch (e: Exception) {
+            dateInputRaw
+        }
+
+        // convert units (list of ACUnit to Map)
+        val unitMaps = acUnits.map { u ->
             mapOf(
-                "brand" to unit.brand,
-                "pk" to unit.pk,
-                "workType" to unit.workType
+                "brand" to u.brand,
+                "pk" to u.pk,
+                "workType" to u.workType
             )
         }
 
@@ -212,23 +224,24 @@ class DashboardCustomer : AppCompatActivity() {
             "customerId" to userId,
             "name" to name,
             "address" to address,
-            "date" to date,
+            "date" to isoDate,
             "time" to time,
             "mapLink" to mapLink,
             "phone" to phone,
-            "units" to unitsForFirestore,
-            "status" to "Pending",
-            "timestamp" to FieldValue.serverTimestamp()
+            "status" to "pending",
+            "units" to unitMaps,
+            "timestamp" to com.google.firebase.Timestamp.now()
         )
 
         db.collection("requests")
             .add(requestData)
-            .addOnSuccessListener {
-                Toast.makeText(this, "Permintaan berhasil dikirim!", Toast.LENGTH_SHORT).show()
+            .addOnSuccessListener { _ ->
+                Toast.makeText(this, "Request saved", Toast.LENGTH_SHORT).show()
+                // Clear form so the customer can submit another request quickly
                 clearForm()
             }
             .addOnFailureListener { e ->
-                Toast.makeText(this, "Gagal: ${e.message}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Failed to save: ${e.message}", Toast.LENGTH_SHORT).show()
             }
     }
 
