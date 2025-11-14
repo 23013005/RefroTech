@@ -89,7 +89,6 @@ class LeaderNewRequestDetailActivity : AppCompatActivity() {
                     etOther.text.clear()
                 }
             }
-
             androidx.appcompat.app.AlertDialog.Builder(this)
                 .setTitle("Pilih Alasan Penolakan")
                 .setView(dialogView)
