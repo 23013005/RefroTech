@@ -2,7 +2,9 @@ package com.example.refrotech
 
 import android.content.Intent
 import android.os.Bundle
+import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -10,66 +12,91 @@ import com.google.firebase.firestore.FirebaseFirestore
 
 class LeaderConfirmationActivity : AppCompatActivity() {
 
-    private lateinit var tabNew: TextView
-    private lateinit var tabReschedule: TextView
-    private lateinit var recycler: RecyclerView
-    private lateinit var adapter: LeaderRequestAdapter
+    private lateinit var tvPageTitle: TextView
+    private lateinit var tabNewRequests: TextView
+    private lateinit var tabRescheduleRequests: TextView
+    private lateinit var recyclerLeaderRequests: RecyclerView
 
-    private val db = FirebaseFirestore.getInstance()
+    private lateinit var adapter: LeaderRequestAdapter
     private val requestList = mutableListOf<RequestData>()
 
-    private var currentTab = "NEW"   // NEW or RESCHEDULE
+    private val db = FirebaseFirestore.getInstance()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_leader_confirmation)
 
-        tabNew = findViewById(R.id.tabNewRequests)
-        tabReschedule = findViewById(R.id.tabRescheduleRequests)
-        recycler = findViewById(R.id.recyclerLeaderRequests)
+        // ============= INIT VIEWS =============
+        tvPageTitle = findViewById(R.id.tvPageTitle)
+        tabNewRequests = findViewById(R.id.tabNewRequests)
+        tabRescheduleRequests = findViewById(R.id.tabRescheduleRequests)
+        recyclerLeaderRequests = findViewById(R.id.recyclerLeaderRequests)
 
         adapter = LeaderRequestAdapter(this, requestList)
-        recycler.layoutManager = LinearLayoutManager(this)
-        recycler.adapter = adapter
+        recyclerLeaderRequests.layoutManager = LinearLayoutManager(this)
+        recyclerLeaderRequests.adapter = adapter
 
-        loadNewRequests()
+        // Default: Load NEW requests
+        setActiveTab(true)
+        loadRequests("pending")
 
-        tabNew.setOnClickListener {
-            currentTab = "NEW"
-            loadNewRequests()
+        // ============= TAB CLICK HANDLERS =============
+        tabNewRequests.setOnClickListener {
+            setActiveTab(true)
+            tvPageTitle.text = "Konfirmasi Permintaan Baru"
+            loadRequests("pending")
         }
 
-        tabReschedule.setOnClickListener {
-            currentTab = "RESCHEDULE"
-            loadRescheduleRequests()
+        tabRescheduleRequests.setOnClickListener {
+            setActiveTab(false)
+            tvPageTitle.text = "Konfirmasi Permintaan Penjadwalan Ulang"
+            loadRequests("reschedule-pending")
+        }
+
+        // ============= BOTTOM NAV =============
+        findViewById<LinearLayout>(R.id.navDashboard).setOnClickListener {
+            startActivity(Intent(this, leader_dashboard::class.java))
+            finish()
+        }
+
+        findViewById<LinearLayout>(R.id.navTechnician).setOnClickListener {
+            startActivity(Intent(this, TechnicianManagement::class.java))
+        }
+
+        findViewById<LinearLayout>(R.id.navRequests).setOnClickListener {
+            // Already here
         }
     }
 
-    private fun loadNewRequests() {
+    // ============= TAB HIGHLIGHTING =============
+    private fun setActiveTab(isNew: Boolean) {
+        if (isNew) {
+            tabNewRequests.setBackgroundResource(R.drawable.tab_selected)
+            tabRescheduleRequests.setBackgroundResource(R.drawable.tab_unselected)
+        } else {
+            tabNewRequests.setBackgroundResource(R.drawable.tab_unselected)
+            tabRescheduleRequests.setBackgroundResource(R.drawable.tab_selected)
+        }
+    }
+
+    // ============= LOAD FIRESTORE REQUESTS =============
+    private fun loadRequests(status: String) {
         db.collection("requests")
-            .whereEqualTo("status", "pending") // normalized to lowercase
+            .whereEqualTo("status", status)
             .get()
-            .addOnSuccessListener { result ->
+            .addOnSuccessListener { snap ->
                 requestList.clear()
-                for (doc in result) {
-                    val req = RequestData.fromFirestore(doc)
-                    requestList.add(req)
+                for (doc in snap.documents) {
+                    requestList.add(RequestData.fromFirestore(doc))
                 }
                 adapter.notifyDataSetChanged()
+
+                if (requestList.isEmpty()) {
+                    Toast.makeText(this, "Tidak ada permintaan", Toast.LENGTH_SHORT).show()
+                }
             }
-    }
-
-    private fun loadRescheduleRequests() {
-        db.collection("requests")
-            .whereEqualTo("status", "reschedule-pending")
-            .get()
-            .addOnSuccessListener { result ->
-                requestList.clear()
-                for (doc in result) {
-                    val req = RequestData.fromFirestore(doc)
-                    requestList.add(req)
-                }
-                adapter.notifyDataSetChanged()
+            .addOnFailureListener { e ->
+                Toast.makeText(this, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
             }
     }
 }

@@ -1,19 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@drawable/bglogin_pelanggan"
+    tools:context=".LeaderConfirmationActivity">
 
-    <!-- FULL PAGE BACKGROUND -->
-    <ImageView
-        android:id="@+id/bgImage"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:scaleType="centerCrop"
-        android:src="@drawable/bglogin_pelanggan" />
+    <!-- ================= HEADER (Logo) ================= -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
         android:gravity="center"
         android:paddingVertical="10dp">
 
@@ -24,57 +21,154 @@
             android:src="@drawable/refro_logo2"
             android:contentDescription="@string/app_name" />
     </LinearLayout>
-    <!-- CONTENT -->
-    <LinearLayout
-        android:orientation="vertical"
-        android:padding="20dp"
+
+    <!-- ================= PAGE TITLE ================= -->
+    <TextView
+        android:id="@+id/tvPageTitle"
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_height="wrap_content"
+        android:text="Konfirmasi Permintaan Baru"
+        android:gravity="center"
+        android:textSize="22sp"
+        android:textColor="@color/black"
+        android:fontFamily="@font/inter_bold"
+        android:layout_marginTop="10dp"
+        android:paddingBottom="10dp" />
 
-        <!-- TOP TAB BUTTONS -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginTop="70dp">
+    <!-- ================= TOP TABS ================= -->
+    <!-- ================= TOP TABS ================= -->
+    <LinearLayout
+        android:id="@+id/topTabs"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:paddingHorizontal="20dp"
+        android:layout_marginTop="10dp">
 
-            <!-- NEW REQUESTS TAB -->
-            <TextView
-                android:id="@+id/tabNewRequests"
-                android:layout_width="0dp"
-                android:layout_height="60dp"
-                android:layout_weight="1"
-                android:background="@drawable/login_button"
-                android:gravity="center"
-                android:text="New Requests"
-                android:textStyle="bold"
-                android:textSize="15sp"
-                android:textColor="@android:color/black"
-                android:paddingBottom="5dp" />
+        <!-- New Requests Tab -->
+        <TextView
+            android:id="@+id/tabNewRequests"
+            android:layout_width="0dp"
+            android:layout_height="60dp"
+            android:layout_weight="1"
+            android:background="@drawable/login_button"
+            android:gravity="center"
+            android:text="Permintaan Baru"
+            android:paddingBottom="7dp"
+            android:textStyle="bold"
+            android:textSize="15sp"
+            android:textColor="@android:color/black" />
 
-            <!-- RESCHEDULE REQUESTS TAB -->
-            <TextView
-                android:id="@+id/tabRescheduleRequests"
-                android:layout_width="0dp"
-                android:layout_height="60dp"
-                android:layout_weight="1"
-                android:layout_marginStart="12dp"
-                android:background="@drawable/login_button"
-                android:gravity="center"
-                android:text="Reschedule Requests"
-                android:textStyle="bold"
-                android:textSize="15sp"
-                android:textColor="@android:color/black"
-                android:paddingBottom="5dp" />
-        </LinearLayout>
-
-        <!-- LIST -->
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/recyclerLeaderRequests"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:layout_marginTop="20dp" />
-
+        <!-- Reschedule Requests Tab -->
+        <TextView
+            android:id="@+id/tabRescheduleRequests"
+            android:layout_width="0dp"
+            android:layout_height="60dp"
+            android:layout_weight="1"
+            android:layout_marginStart="12dp"
+            android:background="@drawable/login_button"
+            android:gravity="center"
+            android:text="Penjadwalan Ulang"
+            android:textStyle="bold"
+            android:textSize="15sp"
+            android:paddingBottom="7dp"
+            android:textColor="@android:color/black" />
     </LinearLayout>
 
-</RelativeLayout>
+
+    <!-- ================= REQUEST LIST ================= -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recyclerLeaderRequests"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginTop="15dp"
+        android:paddingHorizontal="20dp"
+        android:overScrollMode="never" />
+
+    <!-- ================= BOTTOM NAVIGATION ================= -->
+    <LinearLayout
+        android:id="@+id/bottomNav"
+        android:layout_width="match_parent"
+        android:layout_height="65dp"
+        android:orientation="horizontal"
+        android:background="@drawable/dialog_background"
+        android:gravity="center"
+        android:paddingHorizontal="40dp"
+        android:elevation="10dp">
+
+        <!-- DASHBOARD TAB -->
+        <LinearLayout
+            android:id="@+id/navDashboard"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <ImageView
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:src="@drawable/ic_home"
+                android:contentDescription="Dashboard" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Dashboard"
+                android:textSize="12sp"
+                android:textColor="@color/black"
+                android:fontFamily="@font/inter_bold" />
+        </LinearLayout>
+
+        <!-- TECHNICIAN TAB -->
+        <LinearLayout
+            android:id="@+id/navTechnician"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <ImageView
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:src="@drawable/ic_person"
+                android:contentDescription="Technicians" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Teknisi"
+                android:textSize="12sp"
+                android:textColor="@color/black"
+                android:fontFamily="@font/inter_bold" />
+        </LinearLayout>
+
+        <!-- REQUEST TAB -->
+        <LinearLayout
+            android:id="@+id/navRequests"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <ImageView
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:src="@drawable/ic_list"
+                android:contentDescription="Requests" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Permintaan"
+                android:textSize="12sp"
+                android:textColor="@color/black"
+                android:fontFamily="@font/inter_bold" />
+        </LinearLayout>
+    </LinearLayout>
+
+</LinearLayout>

@@ -3,7 +3,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <!-- FULL PAGE BACKGROUND -->
+    <!-- BACKGROUND -->
     <ImageView
         android:id="@+id/bgImage"
         android:layout_width="match_parent"
@@ -18,9 +18,9 @@
         android:padding="20dp">
 
         <LinearLayout
+            android:orientation="vertical"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical">
+            android:layout_height="wrap_content">
 
             <!-- TITLE -->
             <TextView
@@ -30,8 +30,8 @@
                 android:text="Request Details"
                 android:textStyle="bold"
                 android:textSize="22sp"
-                android:layout_marginBottom="16dp"
-                android:textColor="@android:color/black"/>
+                android:textColor="@android:color/black"
+                android:layout_marginBottom="16dp" />
 
             <!-- DETAILS CARD -->
             <LinearLayout
@@ -43,11 +43,11 @@
 
                 <TextView
                     android:id="@+id/tvDetailName"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
                     android:text="Customer Name"
                     android:textSize="18sp"
-                    android:textStyle="bold"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"/>
+                    android:textStyle="bold" />
 
                 <TextView
                     android:id="@+id/tvDetailPhone"
@@ -63,30 +63,41 @@
                     android:text="Address"
                     android:layout_marginTop="4dp" />
 
-                <TextView
-                    android:id="@+id/tvDetailDateTime"
-                    android:layout_width="wrap_content"
+                <!-- DATE + MAP IN SAME ROW -->
+                <LinearLayout
+                    android:id="@+id/dateRow"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Date • Time"
-                    android:layout_marginTop="6dp" />
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
 
-                <ImageView
-                    android:id="@+id/btnDetailMap"
-                    android:layout_width="42dp"
-                    android:layout_height="42dp"
-                    android:layout_marginTop="10dp"
-                    android:src="@drawable/maps_logo" />
+                    <TextView
+                        android:id="@+id/tvDetailDateTime"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Date • Time"
+                        android:textSize="16sp" />
+
+                    <ImageView
+                        android:id="@+id/btnDetailMap"
+                        android:layout_width="42dp"
+                        android:layout_height="42dp"
+                        android:src="@drawable/maps_logo"
+                        android:layout_marginStart="10dp" />
+                </LinearLayout>
+
             </LinearLayout>
 
             <!-- Units Title -->
             <TextView
                 android:id="@+id/tvUnitsTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
                 android:text="Units"
                 android:textStyle="bold"
                 android:textSize="18sp"
-                android:layout_marginTop="20dp"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"/>
+                android:layout_marginTop="18dp" />
 
             <!-- Units List -->
             <androidx.recyclerview.widget.RecyclerView
@@ -95,14 +106,13 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dp" />
 
-            <!-- Buttons -->
+            <!-- APPROVE + REJECT BUTTONS -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:layout_marginTop="24dp">
 
-                <!-- APPROVE BUTTON -->
                 <TextView
                     android:id="@+id/btnDetailApprove"
                     android:layout_width="0dp"
@@ -111,12 +121,11 @@
                     android:background="@drawable/login_button"
                     android:gravity="center"
                     android:text="Approve"
-                    android:paddingBottom="7dp"
                     android:textStyle="bold"
                     android:textSize="16sp"
-                    android:textColor="@android:color/black"/>
+                    android:textColor="@android:color/black"
+                    android:paddingBottom="7dp" />
 
-                <!-- REJECT BUTTON -->
                 <TextView
                     android:id="@+id/btnDetailReject"
                     android:layout_width="0dp"
@@ -125,11 +134,11 @@
                     android:layout_weight="1"
                     android:background="@drawable/login_button"
                     android:gravity="center"
-                    android:paddingBottom="7dp"
                     android:text="Reject"
                     android:textStyle="bold"
                     android:textSize="16sp"
-                    android:textColor="@android:color/black"/>
+                    android:textColor="@android:color/black"
+                    android:paddingBottom="7dp" />
             </LinearLayout>
 
         </LinearLayout>

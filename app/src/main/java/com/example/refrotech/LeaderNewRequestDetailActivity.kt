@@ -29,7 +29,7 @@ class LeaderNewRequestDetailActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_leader_request_detail)
+        setContentView(R.layout.activity_leader_new_request_detail)
 
         btnApprove = findViewById(R.id.btnDetailApprove)
         btnReject = findViewById(R.id.btnDetailReject)
@@ -72,25 +72,42 @@ class LeaderNewRequestDetailActivity : AppCompatActivity() {
 
         btnReject.setOnClickListener {
             if (requestId.isBlank()) return@setOnClickListener
-            // reuse dialog_reject_reason, as original code
+
             val dialogView = layoutInflater.inflate(R.layout.dialog_reject_reason, null)
             val radioGroup = dialogView.findViewById<android.widget.RadioGroup>(R.id.radioRejectReasons)
             val etOther = dialogView.findViewById<android.widget.EditText>(R.id.edtOtherReason)
 
+            // Hide custom input at start
+            etOther.visibility = View.GONE
+
+            // Show only when "Other" is selected
+            radioGroup.setOnCheckedChangeListener { _, checkedId ->
+                if (checkedId == R.id.rbOther) {
+                    etOther.visibility = View.VISIBLE
+                } else {
+                    etOther.visibility = View.GONE
+                    etOther.text.clear()
+                }
+            }
+
             androidx.appcompat.app.AlertDialog.Builder(this)
-                .setTitle("Select Reject Reason")
+                .setTitle("Pilih Alasan Penolakan")
                 .setView(dialogView)
-                .setPositiveButton("Confirm") { _, _ ->
+                .setPositiveButton("Submit") { _, _ ->
+
                     val selectedId = radioGroup.checkedRadioButtonId
-                    val selectedText = if (selectedId != -1) {
-                        dialogView.findViewById<android.widget.RadioButton>(selectedId).text.toString()
-                    } else ""
-                    val finalReason = if (selectedId == R.id.rbOther) {
-                        etOther.text.toString().trim()
-                    } else selectedText
+                    if (selectedId == -1) {
+                        Toast.makeText(this, "Pilih alasan penolakan.", Toast.LENGTH_SHORT).show()
+                        return@setPositiveButton
+                    }
+
+                    val finalReason = when (selectedId) {
+                        R.id.rbOther -> etOther.text.toString().trim()
+                        else -> dialogView.findViewById<android.widget.RadioButton>(selectedId).text.toString()
+                    }
 
                     if (finalReason.isBlank()) {
-                        Toast.makeText(this, "Please select or enter a reason.", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this, "Masukkan alasan penolakan.", Toast.LENGTH_SHORT).show()
                         return@setPositiveButton
                     }
 
@@ -111,7 +128,7 @@ class LeaderNewRequestDetailActivity : AppCompatActivity() {
                             Toast.makeText(this, "Failed to reject: ${e.message}", Toast.LENGTH_SHORT).show()
                         }
                 }
-                .setNegativeButton("Cancel", null)
+                .setNegativeButton("Batal", null)
                 .show()
         }
     }
@@ -120,7 +137,7 @@ class LeaderNewRequestDetailActivity : AppCompatActivity() {
         db.collection("requests").document(id).get()
             .addOnSuccessListener { doc ->
                 if (!doc.exists()) {
-                    Toast.makeText(this, "Request not found", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, "Permintaan Tidak Ditemukan", Toast.LENGTH_SHORT).show()
                     finish()
                     return@addOnSuccessListener
                 }
@@ -138,7 +155,7 @@ class LeaderNewRequestDetailActivity : AppCompatActivity() {
                         val intent = Intent(Intent.ACTION_VIEW, Uri.parse(link))
                         startActivity(intent)
                     } else {
-                        Toast.makeText(this, "No map link provided", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this, "Link Maps tidak diberikan", Toast.LENGTH_SHORT).show()
                     }
                 }
 

@@ -1,6 +1,7 @@
 package com.example.refrotech
 
 import android.app.AlertDialog
+import android.content.Intent
 import android.os.Bundle
 import android.text.InputType
 import android.view.LayoutInflater
@@ -18,6 +19,8 @@ class TechnicianManagement : AppCompatActivity() {
 
     private lateinit var recyclerTechnicians: RecyclerView
     private lateinit var btnAddTechnician: FrameLayout
+
+    // BOTTOM NAVIGATION
     private lateinit var navDashboard: LinearLayout
     private lateinit var navTechnician: LinearLayout
     private lateinit var navRequests: LinearLayout
@@ -32,6 +35,7 @@ class TechnicianManagement : AppCompatActivity() {
 
         recyclerTechnicians = findViewById(R.id.recyclerTechnicians)
         btnAddTechnician = findViewById(R.id.btnAddTechnician)
+
         navDashboard = findViewById(R.id.navDashboard)
         navTechnician = findViewById(R.id.navTechnician)
         navRequests = findViewById(R.id.navRequests)
@@ -45,16 +49,31 @@ class TechnicianManagement : AppCompatActivity() {
         )
 
         recyclerTechnicians.adapter = technicianAdapter
+
+        // Load technicians from Firestore
         loadTechnicians()
 
+        // Add technician
         btnAddTechnician.setOnClickListener { showAddTechnicianDialog() }
 
-        navDashboard.setOnClickListener { finish() }
+        // ===== BOTTOM NAVIGATION =====
+
+        // Go to Leader Dashboard
+        navDashboard.setOnClickListener {
+            val intent = Intent(this, leader_dashboard::class.java)
+            startActivity(intent)
+            finish()
+        }
+
+        // Already in technician page
         navTechnician.setOnClickListener {
             Toast.makeText(this, "Already in Technician Management", Toast.LENGTH_SHORT).show()
         }
+
+        // Go to Leader Confirmation Page (Requests)
         navRequests.setOnClickListener {
-            Toast.makeText(this, "Request confirmation page not ready yet", Toast.LENGTH_SHORT).show()
+            val intent = Intent(this, LeaderConfirmationActivity::class.java)
+            startActivity(intent)
         }
     }
 
