@@ -3,57 +3,56 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:padding="12dp"
-    android:layout_marginBottom="8dp"
-    android:layout_marginEnd="10dp"
-    android:layout_marginStart="10dp"
-    android:background="@drawable/dialog_background"
-    android:elevation="4dp"
-    android:gravity="center_vertical">
+    android:padding="10dp">
 
-    <!-- Row with title + edit button -->
+    <!-- Card Container -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:layout_marginTop="4dp">
+        android:background="@drawable/dialog_background"
+        android:padding="16dp"
+        android:orientation="vertical">
 
+        <!-- Customer Name -->
         <TextView
-            android:id="@+id/tvCustomerName"
-            android:layout_width="0dp"
-            android:layout_weight="1"
-            android:layout_height="wrap_content"
-            android:text="Nama Pelanggan"
-            android:textSize="18sp"
-            android:textColor="@color/black"
-            android:fontFamily="@font/inter_bold" />
-
-        <ImageView
-            android:id="@+id/btnEditSchedule"
+            android:id="@+id/tvScheduleCustomer"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:src="@drawable/ic_edit"
-            android:contentDescription="Edit Schedule"
-            android:backgroundTint="@color/black"
-            android:padding="4dp" />
+            android:text="Customer Name"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:textColor="@android:color/black" />
+
+        <!-- Date + Time -->
+        <TextView
+            android:id="@+id/tvScheduleTime"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="2025-11-17 • 14:00"
+            android:layout_marginTop="6dp"
+            android:textSize="15sp"
+            android:textColor="@android:color/black" />
+
+        <!-- Assigned Technicians -->
+        <TextView
+            android:id="@+id/tvScheduleTechnicians"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Teknisi: John, Michael"
+            android:layout_marginTop="6dp"
+            android:textSize="15sp"
+            android:textColor="@android:color/black" />
+
+        <!-- Address -->
+        <TextView
+            android:id="@+id/tvScheduleAddress"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Address: Jl. Samrat 10"
+            android:layout_marginTop="6dp"
+            android:textSize="14sp"
+            android:textColor="@android:color/black" />
+
     </LinearLayout>
-
-    <TextView
-        android:id="@+id/tvTime"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="13:00"
-        android:textColor="@color/black"
-        android:textSize="16sp"
-        android:fontFamily="@font/inter_bold" />
-
-    <TextView
-        android:id="@+id/tvTechnician"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Agus, Span"
-        android:textColor="@color/black"
-        android:textSize="15sp"
-        android:fontFamily="@font/inter_bold" />
 
 </LinearLayout>

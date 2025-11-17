@@ -1,12 +1,8 @@
 package com.example.refrotech
 
 import android.app.AlertDialog
-import android.app.TimePickerDialog
-import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
-import android.view.View
-import android.view.ViewGroup
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 import com.google.firebase.firestore.FirebaseFirestore
@@ -23,6 +19,14 @@ class AddSchedulePage : AppCompatActivity() {
 
     private lateinit var db: FirebaseFirestore
     private var selectedDate: String? = null
+    private var requestId: String? = null
+
+    // technician lists for dialog
+    private val techNames = mutableListOf<String>()
+    private val techIds = mutableListOf<String>()
+    private val selectedTechIndices = mutableSetOf<Int>()
+
+    private var leaderId: String = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -36,192 +40,128 @@ class AddSchedulePage : AppCompatActivity() {
         btnBack = findViewById(R.id.btnBack)
 
         db = FirebaseFirestore.getInstance()
-        selectedDate = intent.getStringExtra("date")
+        selectedDate = intent.getStringExtra("date") // required for manual creation
+        requestId = intent.getStringExtra("requestId") // optional, if leader invoked from request
 
-        // ===== BACK BUTTON =====
+        // read leaderId from shared prefs (must have been stored at employee login)
+        leaderId = getSharedPreferences("user", MODE_PRIVATE)
+            .getString("uid", "") ?: ""
+
+        // Prevent creating detached schedule without a date
+        if (selectedDate.isNullOrBlank()) {
+            // If invoked without date, user must pick date — here we cancel to avoid confusion
+            Toast.makeText(this, "Tanggal tidak diberikan. Pilih tanggal di dashboard terlebih dahulu.", Toast.LENGTH_LONG).show()
+            finish()
+            return
+        }
+
+        loadAllTechnicians()
+
         btnBack.setOnClickListener {
-            val intent = Intent(this, leader_dashboard::class.java)
-            intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-            startActivity(intent)
             finish()
         }
 
-        // ===== TIME PICKER =====
         etTime.setOnClickListener { showTimePicker() }
-
-        // ===== TECHNICIAN PICKER =====
         etTechnician.setOnClickListener { showTechnicianDialog() }
 
-        // ===== SAVE BUTTON =====
         btnSave.setOnClickListener {
             saveSchedule()
         }
     }
 
-    private fun showTimePicker() {
-        val calendar = Calendar.getInstance()
-        val hour = calendar.get(Calendar.HOUR_OF_DAY)
-        val minute = calendar.get(Calendar.MINUTE)
+    private fun loadAllTechnicians() {
+        db.collection("users")
+            .whereEqualTo("role", "technician")
+            .get()
+            .addOnSuccessListener { res ->
+                techNames.clear(); techIds.clear()
+                for (d in res) {
+                    val name = d.getString("name") ?: d.getString("username") ?: "Tanpa Nama"
+                    techNames.add(name)
+                    techIds.add(d.id)
+                }
+            }
+    }
 
-        TimePickerDialog(this, { _, selectedHour, selectedMinute ->
-            val formattedTime = String.format("%02d:%02d", selectedHour, selectedMinute)
-            etTime.setText(formattedTime)
+    private fun showTimePicker() {
+        val cal = Calendar.getInstance()
+        val hour = cal.get(Calendar.HOUR_OF_DAY)
+        val minute = cal.get(Calendar.MINUTE)
+        android.app.TimePickerDialog(this, { _, h, m ->
+            val fmt = String.format("%02d:%02d", h, m)
+            etTime.setText(fmt)
         }, hour, minute, true).show()
     }
 
-    // ===== Multi-select Technician Dialog (DATE-BASED availability) =====
     private fun showTechnicianDialog() {
-        if (selectedDate.isNullOrEmpty()) {
-            Toast.makeText(this, "Silakan pilih tanggal terlebih dahulu.", Toast.LENGTH_SHORT).show()
+        if (techNames.isEmpty()) {
+            Toast.makeText(this, "Daftar teknisi kosong.", Toast.LENGTH_SHORT).show()
             return
         }
+        val checked = BooleanArray(techNames.size) { selectedTechIndices.contains(it) }
+        val namesArray = techNames.toTypedArray()
 
-        val technicians = mutableListOf<Map<String, String>>()
-        val selectedTechs = mutableSetOf<String>()
-        val unavailableTechs = mutableSetOf<String>()
-
-        // Step 1: Fetch schedules for the same date
-        db.collection("schedules")
-            .whereEqualTo("date", selectedDate)
-            .get()
-            .addOnSuccessListener { scheduleResult ->
-                for (doc in scheduleResult) {
-                    val techNames = doc.getString("technician")?.split(",") ?: emptyList()
-                    unavailableTechs.addAll(techNames.map { it.trim() })
-                }
-
-                // Step 2: Fetch all technicians from users
-                db.collection("users")
-                    .whereEqualTo("role", "technician")
-                    .get()
-                    .addOnSuccessListener { userResult ->
-                        for (doc in userResult) {
-                            val name = doc.getString("name") ?: "Tanpa Nama"
-                            val isUnavailable = unavailableTechs.contains(name)
-                            val status = if (isUnavailable) "Unavailable" else "Available"
-                            technicians.add(mapOf("name" to name, "status" to status))
-                        }
-
-                        val inflater = LayoutInflater.from(this)
-                        val dialogView = inflater.inflate(R.layout.dialog_technician_list, null)
-                        val listView = dialogView.findViewById<ListView>(R.id.listTechnicians)
-                        val saveBtn = dialogView.findViewById<FrameLayout>(R.id.btnSave)
-
-                        val adapter = object : ArrayAdapter<Map<String, String>>(
-                            this,
-                            R.layout.item_technician_multiselect,
-                            technicians
-                        ) {
-                            override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
-                                val view = convertView ?: layoutInflater.inflate(
-                                    R.layout.item_technician_multiselect,
-                                    parent,
-                                    false
-                                )
-
-                                val checkBox = view.findViewById<CheckBox>(R.id.checkBoxTech)
-                                val nameView = view.findViewById<TextView>(R.id.tvTechnicianName)
-                                val statusView = view.findViewById<TextView>(R.id.tvTechnicianStatus)
-
-                                val tech = technicians[position]
-                                val name = tech["name"] ?: ""
-                                val status = tech["status"] ?: ""
-
-                                nameView.text = name
-                                statusView.text = status
-
-                                if (status == "Available") {
-                                    statusView.setTextColor(getColor(android.R.color.holo_green_dark))
-                                    checkBox.isEnabled = true
-                                    view.alpha = 1f
-                                } else {
-                                    statusView.setTextColor(getColor(android.R.color.holo_red_dark))
-                                    checkBox.isEnabled = false
-                                    view.alpha = 0.45f
-                                }
-
-                                checkBox.isChecked = selectedTechs.contains(name)
-
-                                view.setOnClickListener {
-                                    if (checkBox.isEnabled) {
-                                        val newChecked = !checkBox.isChecked
-                                        checkBox.isChecked = newChecked
-                                        if (newChecked) selectedTechs.add(name)
-                                        else selectedTechs.remove(name)
-                                    } else {
-                                        Toast.makeText(
-                                            context,
-                                            "$name sudah memiliki jadwal di tanggal ini.",
-                                            Toast.LENGTH_SHORT
-                                        ).show()
-                                    }
-                                }
-
-                                checkBox.setOnCheckedChangeListener { _, isChecked ->
-                                    if (checkBox.isEnabled) {
-                                        if (isChecked) selectedTechs.add(name)
-                                        else selectedTechs.remove(name)
-                                    }
-                                }
-
-                                return view
-                            }
-                        }
-
-                        listView.adapter = adapter
-
-                        val dialog = AlertDialog.Builder(this)
-                            .setView(dialogView)
-                            .create()
-
-                        saveBtn.setOnClickListener {
-                            val selectedNames = selectedTechs.joinToString(", ")
-                            etTechnician.setText(selectedNames)
-                            dialog.dismiss()
-                        }
-
-                        dialog.show()
-                    }
-                    .addOnFailureListener {
-                        Toast.makeText(this, "Gagal memuat daftar teknisi.", Toast.LENGTH_SHORT).show()
-                    }
+        val builder = AlertDialog.Builder(this)
+            .setTitle("Pilih teknisi")
+            .setMultiChoiceItems(namesArray, checked) { _, which, isChecked ->
+                if (isChecked) selectedTechIndices.add(which) else selectedTechIndices.remove(which)
             }
-            .addOnFailureListener {
-                Toast.makeText(this, "Gagal memeriksa jadwal teknisi.", Toast.LENGTH_SHORT).show()
+            .setPositiveButton("OK") { dialog, _ ->
+                val selectedNames = selectedTechIndices.map { techNames[it] }
+                etTechnician.setText(selectedNames.joinToString(", "))
+                dialog.dismiss()
             }
+            .setNegativeButton("Batal", null)
+        builder.show()
     }
 
     private fun saveSchedule() {
-        val date = selectedDate ?: ""
         val time = etTime.text.toString().trim()
-        val technician = etTechnician.text.toString().trim()
+        val technicianNames = selectedTechIndices.map { techNames[it] }
+        val technicianIds = selectedTechIndices.map { techIds[it] }
         val customer = etCustomer.text.toString().trim()
         val address = etAddress.text.toString().trim()
 
-        if (date.isEmpty() || time.isEmpty() || technician.isEmpty() || customer.isEmpty()) {
-            Toast.makeText(this, "Harap isi semua kolom wajib.", Toast.LENGTH_SHORT).show()
+        if (time.isEmpty() || technicianNames.isEmpty() || customer.isEmpty() || address.isEmpty()) {
+            Toast.makeText(this, "Harap isi semua kolom dan pilih teknisi.", Toast.LENGTH_SHORT).show()
             return
         }
 
-        val schedule = hashMapOf(
-            "date" to date,
+        if (selectedDate.isNullOrBlank()) {
+            Toast.makeText(this, "Tanggal tidak valid.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        // Build document
+        val data = hashMapOf<String, Any>(
+            "requestId" to (requestId ?: ""),      // empty string when manual
+            "origin" to "manual",
+            "date" to selectedDate!!,
             "time" to time,
-            "technician" to technician,
             "customerName" to customer,
             "address" to address,
-            "status" to "pending"
+            "technicians" to technicianNames.joinToString(", "),
+            "technicianIds" to technicianIds,
+            "status" to "assigned",
+            "jobStatus" to "assigned",
+            "leaderId" to leaderId,
+            "createdAt" to com.google.firebase.Timestamp.now()
         )
 
-        db.collection("schedules").add(schedule)
-            .addOnSuccessListener {
-                Toast.makeText(this, "Jadwal berhasil ditambahkan.", Toast.LENGTH_SHORT).show()
-                val intent = Intent(this, leader_dashboard::class.java)
-                intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-                startActivity(intent)
+        // Save to schedules collection
+        db.collection("schedules")
+            .add(data)
+            .addOnSuccessListener { docRef ->
+                // If this schedule originated from a request, update that request linking scheduleId + status
+                if (!requestId.isNullOrBlank()) {
+                    db.collection("requests").document(requestId!!)
+                        .update(mapOf("status" to "assigned", "scheduleId" to docRef.id))
+                }
+                Toast.makeText(this, "Jadwal berhasil dibuat", Toast.LENGTH_SHORT).show()
                 finish()
             }
             .addOnFailureListener { e ->
-                Toast.makeText(this, "Gagal menambah jadwal: ${e.message}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Gagal menyimpan jadwal: ${e.message}", Toast.LENGTH_SHORT).show()
             }
     }
 }

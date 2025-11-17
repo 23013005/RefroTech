@@ -70,8 +70,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         empLoginButton.setOnClickListener {
-            startActivity(Intent(this, activity_pegawai_login::class.java))
-            finish()
+            startActivity(Intent(this, EmployeeLogin::class.java))
         }
 
         loginButton.setOnClickListener { loginUser() }

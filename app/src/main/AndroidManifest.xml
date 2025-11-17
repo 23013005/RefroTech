@@ -3,6 +3,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     package="com.example.refrotech">
 
+    <!-- Internet for Firebase -->
     <uses-permission android:name="android.permission.INTERNET" />
 
     <application
@@ -16,7 +17,10 @@
         android:theme="@style/Theme.RefroTech"
         tools:targetApi="31">
 
-        <!-- Launcher -->
+        <!-- ========================================================= -->
+        <!-- CUSTOMER SIDE (MAIN ENTRY POINT) -->
+        <!-- ========================================================= -->
+
         <activity
             android:name=".MainActivity"
             android:exported="true">
@@ -26,29 +30,80 @@
             </intent-filter>
         </activity>
 
-        <!-- Customer Side -->
-        <activity android:name=".DashboardCustomer" android:exported="false" />
-        <activity android:name=".CustomerHistory" android:exported="false" />
-        <activity android:name=".Register" android:exported="false" />
+        <activity
+            android:name=".DashboardCustomer"
+            android:exported="false" />
 
-        <!-- Employee Login -->
-        <activity android:name=".activity_pegawai_login" android:exported="false" />
+        <activity
+            android:name=".CustomerHistory"
+            android:exported="false" />
 
-        <!-- Leader -->
-        <activity android:name=".leader_dashboard" android:exported="false" />
-        <activity android:name=".LeaderConfirmationActivity" android:exported="false" />
-        <activity android:name=".LeaderNewRequestDetailActivity" android:exported="false" />
-        <activity android:name=".LeaderRescheduleDetailActivity" android:exported="false" />
+        <activity
+            android:name=".Register"
+            android:exported="false" />
 
-        <!-- Technician -->
-        <activity android:name=".TechnicianManagement" android:exported="false" />
 
-        <!-- Scheduling -->
-        <activity android:name=".AddSchedulePage" android:exported="false" />
-        <activity android:name=".EditSchedulePage" android:exported="false" />
+        <!-- ========================================================= -->
+        <!-- EMPLOYEE LOGIN (LEADER + TECHNICIAN) -->
+        <!-- ========================================================= -->
 
-        <!-- Edit customer request (future feature) -->
-        <activity android:name=".EditCustomerRequest" android:exported="false" />
+        <activity
+            android:name=".EmployeeLogin"
+            android:exported="false" />
+
+
+        <!-- ========================================================= -->
+        <!-- LEADER MODULE -->
+        <!-- ========================================================= -->
+
+        <activity
+            android:name=".leader_dashboard"
+            android:exported="false" />
+
+        <activity
+            android:name=".LeaderConfirmationActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".LeaderNewRequestDetailActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".LeaderRescheduleDetailActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".AddSchedulePage"
+            android:exported="false" />
+
+        <activity
+            android:name=".EditSchedulePage"
+            android:exported="false" />
+
+        <activity
+            android:name=".EditCustomerRequest"
+            android:exported="false" />
+
+
+        <!-- ========================================================= -->
+        <!-- TECHNICIAN MODULE -->
+        <!-- ========================================================= -->
+
+        <activity
+            android:name=".TechnicianDashboard"
+            android:exported="false" />
+
+        <activity
+            android:name=".TechnicianHistory"
+            android:exported="false" />
+
+        <activity
+            android:name=".TechnicianJobDetail"
+            android:exported="false" />
+
+        <activity
+            android:name=".TechnicianManagement"
+            android:exported="false" />
 
     </application>
 

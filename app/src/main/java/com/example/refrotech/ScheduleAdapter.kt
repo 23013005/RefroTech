@@ -1,60 +1,42 @@
 package com.example.refrotech
 
-import android.app.AlertDialog
 import android.content.Context
-import android.content.Intent
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ImageView
 import android.widget.TextView
-import android.widget.Toast
 import androidx.recyclerview.widget.RecyclerView
-import com.google.firebase.firestore.FirebaseFirestore
 
 class ScheduleAdapter(
-    private val context: Context,
-    private var scheduleList: List<Schedule>
-) : RecyclerView.Adapter<ScheduleAdapter.ViewHolder>() {
+    private val ctx: Context,
+    private var items: List<Schedule>
+) : RecyclerView.Adapter<ScheduleAdapter.VH>() {
 
-    class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        val tvCustomerName: TextView = itemView.findViewById(R.id.tvCustomerName)
-        val tvTime: TextView = itemView.findViewById(R.id.tvTime)
-        val tvTechnician: TextView = itemView.findViewById(R.id.tvTechnician)
-
-        // EDIT BUTTON from XML (ImageView)
-        val btnEdit: ImageView = itemView.findViewById(R.id.btnEditSchedule)
+    inner class VH(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        val tvCustomer: TextView = itemView.findViewById(R.id.tvScheduleCustomer)
+        val tvTime: TextView = itemView.findViewById(R.id.tvScheduleTime)
+        val tvTechs: TextView = itemView.findViewById(R.id.tvScheduleTechnicians)
+        val tvAddress: TextView = itemView.findViewById(R.id.tvScheduleAddress)
     }
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
-        val view = LayoutInflater.from(context)
-            .inflate(R.layout.item_schedule, parent, false)
-        return ViewHolder(view)
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
+        val v = LayoutInflater.from(ctx).inflate(R.layout.item_schedule, parent, false)
+        return VH(v)
     }
 
-    override fun getItemCount(): Int = scheduleList.size
+    override fun getItemCount(): Int = items.size
 
-    override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        val schedule = scheduleList[position]
-
-        holder.tvCustomerName.text = schedule.customerName
-        holder.tvTime.text = schedule.time
-        holder.tvTechnician.text = schedule.technician
-
-        // === EDIT BUTTON ===
-        holder.btnEdit.setOnClickListener {
-            val intent = Intent(context, EditSchedulePage::class.java)
-            intent.putExtra("scheduleId", schedule.scheduleId)
-            context.startActivity(intent)
-        }
-
-        // There is NO delete button in your XML.
-        // So NO delete functionality here.
+    override fun onBindViewHolder(holder: VH, position: Int) {
+        val it = items[position]
+        holder.tvCustomer.text = it.customerName
+        holder.tvTime.text = "${it.date} • ${it.time}"
+        holder.tvAddress.text = it.address
+        holder.tvTechs.text = it.technicians
+        // You can add click listeners here to open details etc.
     }
 
-    // Used by Leader Dashboard to refresh list
-    fun updateData(newList: List<Schedule>) {
-        scheduleList = newList
+    fun updateData(newItems: List<Schedule>) {
+        items = newItems
         notifyDataSetChanged()
     }
 }

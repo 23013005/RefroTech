@@ -33,7 +33,6 @@ class leader_dashboard : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_leader_dashboard)
 
-        // === Initialize Views ===
         calendarView = findViewById(R.id.calendarView)
         tvSelectedDate = findViewById(R.id.tvSelectedDate)
         recyclerSchedules = findViewById(R.id.recyclerSchedules)
@@ -49,29 +48,27 @@ class leader_dashboard : AppCompatActivity() {
 
         db = FirebaseFirestore.getInstance()
 
-        // === Add Schedule Button ===
+        // Add Schedule -> open AddSchedulePage with selected date
         btnAddSchedule.setOnClickListener {
-            if (selectedDateStr.isNullOrBlank()) {
-                Toast.makeText(this, "Silakan pilih tanggal terlebih dahulu.", Toast.LENGTH_SHORT).show()
+            val date = selectedDateStr
+            if (date.isNullOrBlank()) {
+                Toast.makeText(this, "Pilih tanggal terlebih dahulu di kalender", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
             val intent = Intent(this, AddSchedulePage::class.java)
-            intent.putExtra("date", selectedDateStr)
+            intent.putExtra("date", date)
             startActivity(intent)
         }
 
-        // === Calendar Date Selection ===
+        // Calendar date selection
         calendarView.setOnDateChangedListener(OnDateSelectedListener { _, date, _ ->
+            // MaterialCalendarView's month is 1-based in this listener in some versions; preserve same formatting
             val selectedDateDisplay = "${date.day}-${date.month}-${date.year}"
             tvSelectedDate.text = "Jadwal untuk $selectedDateDisplay"
-
-            // MaterialCalendarView.month is 1..12 (not zero-based). Use month directly.
-            // Build ISO date yyyy-MM-dd
             selectedDateStr = String.format("%04d-%02d-%02d", date.year, date.month, date.day)
             listenToSchedulesForDate(selectedDateStr!!)
         })
 
-        // === Navigation Bar ===
         navDashboard.setOnClickListener {
             Toast.makeText(this, "Sudah di halaman Dashboard", Toast.LENGTH_SHORT).show()
         }
@@ -82,7 +79,6 @@ class leader_dashboard : AppCompatActivity() {
             overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
         }
 
-        // === NAVIGATE TO LEADER CONFIRMATION PAGE ===
         navRequests.setOnClickListener {
             val intent = Intent(this, LeaderConfirmationActivity::class.java)
             startActivity(intent)
@@ -90,10 +86,10 @@ class leader_dashboard : AppCompatActivity() {
         }
     }
 
-    // ===== Real-time Firestore Listener =====
     private fun listenToSchedulesForDate(dateStr: String) {
         scheduleListener?.remove()
 
+        // Query schedules collection for that date (includes manual and request-origin schedules)
         scheduleListener = db.collection("schedules")
             .whereEqualTo("date", dateStr)
             .addSnapshotListener { snapshots, e ->
@@ -110,13 +106,17 @@ class leader_dashboard : AppCompatActivity() {
 
                 val schedules = snapshots.map { doc ->
                     Schedule(
-                        customerName = doc.getString("customerName") ?: (doc.getString("name") ?: "Tanpa Nama"),
+                        scheduleId = doc.id,
+                        customerName = doc.getString("customerName") ?: "-",
+                        date = doc.getString("date") ?: "-",
                         time = doc.getString("time") ?: "-",
-                        technician = doc.getString("technician") ?: "-",
-                        scheduleId = doc.id
+                        technicians = doc.getString("technicians") ?: "",
+                        technicianIds = doc.get("technicianIds") as? List<String> ?: emptyList(),
+                        address = doc.getString("address") ?: "-",
+                        origin = doc.getString("origin") ?: "manual",
+                        requestId = doc.getString("requestId") ?: ""
                     )
                 }
-
                 scheduleAdapter.updateData(schedules)
             }
     }
