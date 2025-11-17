@@ -19,7 +19,7 @@
         <ImageView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="40dp"
+            android:layout_marginTop="10dp"
             android:contentDescription="@string/app_name"
             android:background="@drawable/refro_logo2" />
     </LinearLayout>
@@ -127,13 +127,4 @@
             android:background="@drawable/delete_button">
         </FrameLayout>
     </LinearLayout>
-    <FrameLayout
-        android:id="@+id/btnBack"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="left"
-        android:layout_marginLeft="20dp"
-        android:layout_marginTop="30dp"
-        android:background="@drawable/back_button"/>
-
 </LinearLayout>

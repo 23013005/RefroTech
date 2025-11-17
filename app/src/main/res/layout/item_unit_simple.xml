@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/input_box_login"
+    android:padding="14dp"
+    android:layout_marginBottom="12dp">
+
+    <TextView
+        android:id="@+id/tvUnitBrand"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Merek: Panasonic" />
+
+    <TextView
+        android:id="@+id/tvUnitPk"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="PK: 1.5PK"
+        android:layout_marginTop="2dp"/>
+
+    <TextView
+        android:id="@+id/tvUnitWork"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Jenis Pekerjaan: Service"
+        android:layout_marginTop="2dp"/>
+
+</LinearLayout>

@@ -1,103 +1,93 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/activity_technician_management_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:background="@drawable/bglogin_pelanggan"
-    tools:context=".TechnicianManagement">
+    tools:context=".LeaderConfirmationActivity">
 
-    <!-- HEADER / LOGO -->
+    <!-- ================= HEADER (Logo) ================= -->
     <LinearLayout
-        android:id="@+id/Header"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
         android:gravity="center"
-        android:paddingTop="20dp"
-        android:paddingBottom="8dp">
+        android:paddingVertical="10dp">
 
         <ImageView
+            android:id="@+id/logoImage"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:background="@drawable/refro_logo2"
+            android:src="@drawable/refro_logo2"
             android:contentDescription="@string/app_name" />
     </LinearLayout>
 
-    <!-- PAGE TITLE -->
+    <!-- ================= PAGE TITLE ================= -->
     <TextView
-        android:id="@+id/tvTechMgmtTitle"
+        android:id="@+id/tvPageTitle"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Akun Teknisi"
+        android:text="Konfirmasi Permintaan Baru"
+        android:gravity="center"
         android:textSize="22sp"
         android:textColor="@color/black"
         android:fontFamily="@font/inter_bold"
-        android:gravity="center"
-        android:paddingTop="6dp"
-        android:paddingBottom="6dp" />
+        android:layout_marginTop="10dp"
+        android:paddingBottom="10dp" />
 
-    <!-- SCROLLABLE CONTENT -->
-    <androidx.core.widget.NestedScrollView
+    <!-- ================= TOP TABS ================= -->
+    <!-- ================= TOP TABS ================= -->
+    <LinearLayout
+        android:id="@+id/topTabs"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:paddingHorizontal="20dp"
+        android:layout_marginTop="10dp">
+
+        <!-- New Requests Tab -->
+        <TextView
+            android:id="@+id/tabNewRequests"
+            android:layout_width="0dp"
+            android:layout_height="60dp"
+            android:layout_weight="1"
+            android:background="@drawable/login_button"
+            android:gravity="center"
+            android:text="Permintaan Baru"
+            android:paddingBottom="7dp"
+            android:textStyle="bold"
+            android:textSize="15sp"
+            android:textColor="@android:color/black" />
+
+        <!-- Reschedule Requests Tab -->
+        <TextView
+            android:id="@+id/tabRescheduleRequests"
+            android:layout_width="0dp"
+            android:layout_height="60dp"
+            android:layout_weight="1"
+            android:layout_marginStart="12dp"
+            android:background="@drawable/login_button"
+            android:gravity="center"
+            android:text="Penjadwalan Ulang"
+            android:textStyle="bold"
+            android:textSize="15sp"
+            android:paddingBottom="7dp"
+            android:textColor="@android:color/black" />
+    </LinearLayout>
+
+
+    <!-- ================= REQUEST LIST ================= -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recyclerLeaderRequests"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:overScrollMode="never"
-        android:fillViewport="true">
+        android:layout_marginTop="15dp"
+        android:paddingHorizontal="20dp"
+        android:overScrollMode="never" />
 
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:paddingHorizontal="16dp"
-            android:paddingTop="8dp"
-            android:paddingBottom="12dp">
-
-            <!-- Add Technician button (centered and full width-ish) -->
-            <FrameLayout
-                android:id="@+id/btnAddTechnician"
-                android:layout_width="match_parent"
-                android:layout_height="48dp"
-                android:layout_marginTop="8dp"
-                android:layout_marginBottom="12dp"
-                android:background="@drawable/login_button"
-                android:paddingVertical="6dp">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Tambah Teknisi"
-                    android:layout_gravity="center"
-                    android:textSize="16sp"
-                    android:fontFamily="@font/inter_bold"
-                    android:textColor="@color/black" />
-            </FrameLayout>
-
-            <!-- Recycler for technicians -->
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/recyclerTechnicians"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:nestedScrollingEnabled="false"
-                android:overScrollMode="never"
-                android:clipToPadding="false" />
-
-            <!-- optional empty-state -->
-            <TextView
-                android:id="@+id/tvNoTechnicians"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="No technicians yet."
-                android:visibility="gone"
-                android:gravity="center"
-                android:paddingTop="18dp"
-                android:textColor="@android:color/darker_gray" />
-
-        </LinearLayout>
-    </androidx.core.widget.NestedScrollView>
-
-    <!-- BOTTOM NAVIGATION (UNIFIED STYLE) -->
+    <!-- ================= BOTTOM NAVIGATION ================= -->
     <LinearLayout
         android:id="@+id/bottomNav"
         android:layout_width="match_parent"
@@ -108,7 +98,7 @@
         android:paddingHorizontal="40dp"
         android:elevation="10dp">
 
-        <!-- DASHBOARD -->
+        <!-- DASHBOARD TAB -->
         <LinearLayout
             android:id="@+id/navDashboard"
             android:layout_width="0dp"
@@ -132,7 +122,7 @@
                 android:fontFamily="@font/inter_bold" />
         </LinearLayout>
 
-        <!-- TECHNICIAN -->
+        <!-- TECHNICIAN TAB -->
         <LinearLayout
             android:id="@+id/navTechnician"
             android:layout_width="0dp"
@@ -156,7 +146,7 @@
                 android:fontFamily="@font/inter_bold" />
         </LinearLayout>
 
-        <!-- REQUESTS -->
+        <!-- REQUEST TAB -->
         <LinearLayout
             android:id="@+id/navRequests"
             android:layout_width="0dp"
@@ -179,7 +169,6 @@
                 android:textColor="@color/black"
                 android:fontFamily="@font/inter_bold" />
         </LinearLayout>
-
     </LinearLayout>
 
 </LinearLayout>
