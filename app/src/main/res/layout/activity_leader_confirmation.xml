@@ -93,7 +93,7 @@
         android:layout_width="match_parent"
         android:layout_height="65dp"
         android:orientation="horizontal"
-        android:background="@drawable/dialog_background"
+        android:background="@color/white"
         android:gravity="center"
         android:paddingHorizontal="40dp"
         android:elevation="10dp">

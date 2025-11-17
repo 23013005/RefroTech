@@ -5,6 +5,8 @@ import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.RippleDrawable
 import android.os.Bundle
+import android.view.MotionEvent
+import android.view.animation.AnimationUtils
 import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.ImageView
@@ -27,8 +29,10 @@ class MainActivity : AppCompatActivity() {
     private var isPasswordVisible = false   // 👈 added
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+
 
         auth = FirebaseAuth.getInstance()
         db = FirebaseFirestore.getInstance()
@@ -44,6 +48,33 @@ class MainActivity : AppCompatActivity() {
         applyRippleEffect(loginButton)
         applyRippleEffect(registerButton)
         applyRippleEffect(empLoginButton)
+        val animPress = AnimationUtils.loadAnimation(this, R.anim.button_press)
+        val animRelease = AnimationUtils.loadAnimation(this, R.anim.button_release)
+
+        registerButton.setOnTouchListener { v, event ->
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    v.startAnimation(animPress)
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    v.startAnimation(animRelease)
+                }
+            }
+            false
+        }
+
+
+        loginButton.setOnTouchListener { v, event ->
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    v.startAnimation(animPress)
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    v.startAnimation(animRelease)
+                }
+            }
+            false
+        }
 
         // ===== Password Visibility Toggle =====
         togglePassword.setOnClickListener {
@@ -98,6 +129,7 @@ class MainActivity : AppCompatActivity() {
                     val intent = Intent(this, DashboardCustomer::class.java)
                     intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
                     startActivity(intent)
+                    overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
                     finish()
 
                 } else {
@@ -166,6 +198,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun applyRippleEffect(button: FrameLayout) {
+
         val rippleColor = Color.parseColor("#EAFFD7")
         val colorStateList = android.content.res.ColorStateList.valueOf(rippleColor)
 

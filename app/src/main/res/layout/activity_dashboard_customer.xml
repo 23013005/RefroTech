@@ -4,7 +4,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="@drawable/bglogin_pelanggan"
+    android:background="@drawable/bg_lobby_pelanggan"
     tools:context=".DashboardCustomer">
 
     <!-- ===== SCROLLABLE MAIN CONTENT ===== -->
@@ -51,22 +51,26 @@
             <!-- ===== FORM FIELDS ===== -->
             <EditText
                 android:id="@+id/etName"
+                android:textColorHint="@color/Grey"
                 style="@style/InputFieldStyle"
                 android:hint="Nama:" />
 
             <EditText
                 android:id="@+id/etAddress"
+                android:textColorHint="@color/Grey"
                 style="@style/InputFieldStyle"
                 android:hint="Alamat:" />
 
             <EditText
                 android:id="@+id/etDate"
+                android:textColorHint="@color/Grey"
                 style="@style/InputFieldStyle"
                 android:hint="Tanggal:"
                 android:focusable="false" />
 
             <EditText
                 android:id="@+id/etTime"
+                android:textColorHint="@color/Grey"
                 style="@style/InputFieldStyle"
                 android:hint="Jam:"
                 android:focusable="false" />
@@ -80,6 +84,7 @@
 
                 <EditText
                     android:id="@+id/etMapLink"
+                    android:textColorHint="@color/Grey"
                     style="@style/InputFieldStyle"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
@@ -93,7 +98,7 @@
                     android:layout_width="40dp"
                     android:layout_height="40dp"
                     android:layout_marginStart="10dp"
-                    android:src="@drawable/maps_logo2"
+                    android:src="@drawable/maps_logo"
                     android:contentDescription="Open Maps"
                     android:clickable="true"
                     android:focusable="true" />
@@ -101,6 +106,7 @@
 
             <EditText
                 android:id="@+id/etPhone"
+                android:textColorHint="@color/Grey"
                 style="@style/InputFieldStyle"
                 android:hint="Nomor Telp:" />
 
@@ -181,7 +187,7 @@
         android:layout_width="match_parent"
         android:layout_height="65dp"
         android:orientation="horizontal"
-        android:background="@drawable/dialog_background"
+        android:background="@color/white"
         android:gravity="center"
         android:paddingHorizontal="40dp"
         android:elevation="10dp">
