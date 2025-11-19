@@ -9,6 +9,7 @@ import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.airbnb.lottie.LottieAnimationView
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import java.text.SimpleDateFormat
@@ -33,6 +34,9 @@ class DashboardCustomer : AppCompatActivity() {
     private lateinit var adapter: ACUnitAdapter
     private val acUnits = mutableListOf<ACUnit>()
 
+    // 🔥 Tambahan untuk loading
+    private lateinit var loadingOverlay: LottieAnimationView
+
     private val db = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
 
@@ -53,6 +57,9 @@ class DashboardCustomer : AppCompatActivity() {
         btnOpenMaps = findViewById(R.id.btnOpenMaps)
         navHome = findViewById(R.id.navHome)
         navHistory = findViewById(R.id.navHistory)
+
+        // 🔥 Loading overlay
+        loadingOverlay = findViewById(R.id.loadingOverlay)
 
         // === Setup RecyclerView ===
         adapter = ACUnitAdapter(acUnits)
@@ -97,6 +104,18 @@ class DashboardCustomer : AppCompatActivity() {
         }
     }
 
+    // 🔥 Function untuk menampilkan loading
+    private fun showLoading() {
+        loadingOverlay.visibility = android.view.View.VISIBLE
+        loadingOverlay.playAnimation()
+    }
+
+    // 🔥 Function untuk menyembunyikan loading
+    private fun hideLoading() {
+        loadingOverlay.pauseAnimation()
+        loadingOverlay.visibility = android.view.View.GONE
+    }
+
     // ===== Date Picker with Restrictions =====
     private fun showDatePicker() {
         val cal = Calendar.getInstance()
@@ -110,7 +129,6 @@ class DashboardCustomer : AppCompatActivity() {
                 if (dayOfWeek == Calendar.SUNDAY) {
                     Toast.makeText(this, "Tidak dapat memilih hari Minggu.", Toast.LENGTH_SHORT).show()
                 } else {
-                    // Keep original UI format (dd/MM/yyyy) but we convert to ISO when saving
                     val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
                     etDate.setText(sdf.format(selectedDate.time))
                 }
@@ -120,7 +138,6 @@ class DashboardCustomer : AppCompatActivity() {
             cal.get(Calendar.DAY_OF_MONTH)
         )
 
-        // Minimum selectable date = tomorrow
         val tomorrow = Calendar.getInstance()
         tomorrow.add(Calendar.DAY_OF_YEAR, 1)
         datePicker.datePicker.minDate = tomorrow.timeInMillis
@@ -184,25 +201,29 @@ class DashboardCustomer : AppCompatActivity() {
 
     // ===== Save Request to Firestore =====
     private fun saveRequestToFirestore() {
+
+        showLoading() // 🔥 Munculkan loading
+
         val userId = auth.currentUser?.uid
         if (userId == null) {
+            hideLoading()
             Toast.makeText(this, "Please login first", Toast.LENGTH_SHORT).show()
             return
         }
 
         val name = etName.text.toString().trim()
         val address = etAddress.text.toString().trim()
-        val dateInputRaw = etDate.text.toString().trim() // could be dd/MM/yyyy or yyyy-MM-dd
+        val dateInputRaw = etDate.text.toString().trim()
         val time = etTime.text.toString().trim()
         val mapLink = etMapLink.text.toString().trim()
         val phone = etPhone.text.toString().trim()
 
         if (name.isEmpty() || address.isEmpty() || dateInputRaw.isEmpty() || time.isEmpty()) {
+            hideLoading()
             Toast.makeText(this, "Please fill required fields", Toast.LENGTH_SHORT).show()
             return
         }
 
-        // convert date to ISO yyyy-MM-dd if needed
         val isoDate = try {
             if (dateInputRaw.contains("/")) {
                 TimeUtils.toIsoDate(dateInputRaw)
@@ -211,7 +232,6 @@ class DashboardCustomer : AppCompatActivity() {
             dateInputRaw
         }
 
-        // convert units (list of ACUnit to Map)
         val unitMaps = acUnits.map { u ->
             mapOf(
                 "brand" to u.brand,
@@ -235,12 +255,13 @@ class DashboardCustomer : AppCompatActivity() {
 
         db.collection("requests")
             .add(requestData)
-            .addOnSuccessListener { _ ->
+            .addOnSuccessListener {
+                hideLoading() // 🔥 Tutup loading
                 Toast.makeText(this, "Request saved", Toast.LENGTH_SHORT).show()
-                // Clear form so the customer can submit another request quickly
                 clearForm()
             }
             .addOnFailureListener { e ->
+                hideLoading() // 🔥 Tutup loading
                 Toast.makeText(this, "Failed to save: ${e.message}", Toast.LENGTH_SHORT).show()
             }
     }

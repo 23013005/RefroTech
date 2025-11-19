@@ -3,10 +3,21 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:orientation="vertical"
     android:background="@drawable/bg_lobby_pelanggan"
     tools:context=".DashboardCustomer">
-
+    <com.airbnb.lottie.LottieAnimationView
+        android:id="@+id/loadingOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#80000000"
+        android:visibility="gone"
+        android:clickable="true"
+        android:focusable="true"
+        app:lottie_rawRes="@raw/loading_pesanan"
+        app:lottie_autoPlay="false"
+        app:lottie_loop="true"/>
     <!-- ===== SCROLLABLE MAIN CONTENT ===== -->
     <ScrollView
         android:layout_width="match_parent"
@@ -21,6 +32,8 @@
             android:orientation="vertical"
             android:padding="10dp">
 
+
+
             <!-- ===== HEADER ===== -->
             <LinearLayout
                 android:layout_width="match_parent"
@@ -28,6 +41,8 @@
                 android:orientation="horizontal"
                 android:gravity="center"
                 android:paddingVertical="10dp">
+
+
 
                 <ImageView
                     android:id="@+id/logoImage"

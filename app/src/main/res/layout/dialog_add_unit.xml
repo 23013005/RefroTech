@@ -11,6 +11,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:hint="Merk AC"
+        android:textColorHint="@color/black"
         android:inputType="textCapWords"
         android:background="@drawable/input_box_login"
         android:padding="10dp"
@@ -22,6 +23,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:hint="Jumlah PK"
+        android:textColorHint="@color/black"
         android:inputType="numberDecimal"
         android:background="@drawable/input_box_login"
         android:padding="10dp"
@@ -34,5 +36,6 @@
         android:layout_height="wrap_content"
         android:background="@drawable/input_box_login"
         android:padding="10dp"
+
         android:spinnerMode="dropdown" />
 </LinearLayout>
