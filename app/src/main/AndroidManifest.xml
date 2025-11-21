@@ -57,7 +57,7 @@
         <!-- ========================================================= -->
 
         <activity
-            android:name=".leader_dashboard"
+            android:name=".LeaderDashboard"
             android:exported="false" />
 
         <activity

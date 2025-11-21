@@ -6,7 +6,7 @@
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:background="@drawable/bg_lobby_pemimpin"
-    tools:context=".leader_dashboard">
+    tools:context=".LeaderDashboard">
 
     <!-- ===== SCROLLABLE MAIN CONTENT ===== -->
     <ScrollView

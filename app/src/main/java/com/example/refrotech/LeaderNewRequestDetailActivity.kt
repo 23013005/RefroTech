@@ -1,240 +1,275 @@
 package com.example.refrotech
 
+import android.app.AlertDialog
 import android.content.Intent
-import android.net.Uri
 import android.os.Bundle
-import android.view.LayoutInflater
-import android.widget.*
-import androidx.appcompat.app.AlertDialog
+import android.widget.EditText
+import android.widget.FrameLayout
+import android.widget.RadioGroup
+import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.recyclerview.widget.LinearLayoutManager
+import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
+import java.text.SimpleDateFormat
+import java.util.*
 
+/**
+ * When leader approves a request, they can assign multiple technicians.
+ * Technicians listed as unavailable for request date will be excluded from selection.
+ */
 class LeaderNewRequestDetailActivity : AppCompatActivity() {
 
-    private lateinit var btnApprove: TextView
-    private lateinit var btnReject: TextView
-
-    private lateinit var tvDetailName: TextView
-    private lateinit var tvDetailPhone: TextView
-    private lateinit var tvDetailAddress: TextView
-    private lateinit var tvDetailDateTime: TextView
-    private lateinit var btnDetailMap: ImageView
-    private lateinit var rvDetailUnits: androidx.recyclerview.widget.RecyclerView
-
     private val db = FirebaseFirestore.getInstance()
+    private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+
+    private lateinit var tvName: TextView
+    private lateinit var tvAddress: TextView
+    private lateinit var tvDateTime: TextView
+    private lateinit var btnApprove: FrameLayout
+    private lateinit var btnReject: FrameLayout
+
     private var requestId: String = ""
+    private lateinit var requestData: RequestData
 
-    // tech lists for selection
-    private val techNames = mutableListOf<String>()
-    private val techIds = mutableListOf<String>()
-    private val selectedIndices = mutableSetOf<Int>()
+    private val allTechNames = mutableListOf<String>()
+    private val allTechIds = mutableListOf<String>()
+    private val allTechDocs = mutableListOf<Map<String, Any>>()
 
-    private var leaderId: String = ""
+    private val selectedTechNames = mutableListOf<String>()
+    private val selectedTechIds = mutableListOf<String>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_leader_new_request_detail)
 
+        tvName = findViewById(R.id.tvDetailName)
+        tvAddress = findViewById(R.id.tvDetailAddress)
+        tvDateTime = findViewById(R.id.tvDetailDateTime)
         btnApprove = findViewById(R.id.btnDetailApprove)
         btnReject = findViewById(R.id.btnDetailReject)
 
-        tvDetailName = findViewById(R.id.tvDetailName)
-        tvDetailPhone = findViewById(R.id.tvDetailPhone)
-        tvDetailAddress = findViewById(R.id.tvDetailAddress)
-        tvDetailDateTime = findViewById(R.id.tvDetailDateTime)
-        btnDetailMap = findViewById(R.id.btnDetailMap)
-        rvDetailUnits = findViewById(R.id.rvDetailUnits)
-        rvDetailUnits.layoutManager = LinearLayoutManager(this)
-
         requestId = intent.getStringExtra("requestId") ?: ""
-
-        leaderId = getSharedPreferences("user", MODE_PRIVATE)
-            .getString("uid", "") ?: ""
-
-        if (requestId.isNotBlank()) {
-            loadRequestDetails(requestId)
-        } else {
+        if (requestId.isBlank()) {
             Toast.makeText(this, "Request ID missing", Toast.LENGTH_SHORT).show()
             finish()
+            return
         }
 
+        // load all technicians for selection; when showing selection, filter by request date
+        loadAllTechnicians()
+        loadRequest()
+
         btnApprove.setOnClickListener {
-            // Show technician selection dialog, then create schedule and update request
-            showTechnicianSelectionDialogAndApprove()
+            if (selectedTechIds.isEmpty()) {
+                Toast.makeText(this, "Pilih teknisi terlebih dahulu.", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            confirmApprove()
         }
 
         btnReject.setOnClickListener {
-            showRejectReasonDialog()
+            showRejectDialog()
         }
     }
 
-    private fun loadRequestDetails(id: String) {
-        db.collection("requests").document(id).get()
+    private fun loadAllTechnicians() {
+        db.collection(FirestoreFields.USERS)
+            .whereEqualTo("role", "technician")
+            .get()
+            .addOnSuccessListener { snap ->
+                allTechNames.clear()
+                allTechIds.clear()
+                allTechDocs.clear()
+                for (d in snap.documents) {
+                    allTechNames.add(d.getString("name") ?: "Tanpa Nama")
+                    allTechIds.add(d.id)
+                    allTechDocs.add(d.data ?: mapOf<String, Any>())
+                }
+            }
+    }
+
+    private fun loadRequest() {
+        db.collection(FirestoreFields.REQUESTS).document(requestId)
+            .get()
             .addOnSuccessListener { doc ->
                 if (!doc.exists()) {
-                    Toast.makeText(this, "Permintaan Tidak Ditemukan", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, "Request not found", Toast.LENGTH_SHORT).show()
                     finish()
                     return@addOnSuccessListener
                 }
+                requestData = RequestData.fromFirestore(doc)
 
-                val req = RequestData.fromFirestore(doc)
-                tvDetailName.text = req.name
-                tvDetailPhone.text = req.phone
-                tvDetailAddress.text = req.address
-                tvDetailDateTime.text = "${req.date} • ${req.time}"
+                tvName.text = requestData.name
+                tvAddress.text = requestData.address
+                tvDateTime.text = "${requestData.date} • ${requestData.time}"
 
-                btnDetailMap.setOnClickListener {
-                    val link = req.mapLink
-                    if (!link.isNullOrBlank()) {
-                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(link))
-                        startActivity(intent)
-                    } else {
-                        Toast.makeText(this, "Link Maps tidak diberikan", Toast.LENGTH_SHORT).show()
-                    }
-                }
-
-                val acUnits = req.units.map { m ->
-                    ACUnit(
-                        brand = m["brand"]?.toString() ?: "-",
-                        pk = m["pk"]?.toString() ?: "-",
-                        workType = m["workType"]?.toString() ?: "-"
-                    )
-                }
-                rvDetailUnits.adapter = SimpleUnitsAdapter(acUnits)
+                // No pre-assigned technicians on requests: leader chooses manually
+                selectedTechNames.clear()
+                selectedTechIds.clear()
             }
             .addOnFailureListener { e ->
                 Toast.makeText(this, "Failed to load request: ${e.message}", Toast.LENGTH_SHORT).show()
             }
     }
 
-    private fun showTechnicianSelectionDialogAndApprove() {
-        // load technicians if not loaded
-        db.collection("users")
-            .whereEqualTo("role", "technician")
-            .get()
-            .addOnSuccessListener { res ->
-                techNames.clear(); techIds.clear(); selectedIndices.clear()
-                for (d in res) {
-                    techNames.add(d.getString("name") ?: d.getString("username") ?: "Tanpa Nama")
-                    techIds.add(d.id)
-                }
+    /**
+     * Show a technician selection dialog filtered by the request date.
+     */
+    private fun showTechnicianSelectionForRequest() {
+        val requestDateStr = requestData.date
 
-                if (techNames.isEmpty()) {
-                    Toast.makeText(this, "Tidak ada teknisi tersedia", Toast.LENGTH_SHORT).show()
-                    return@addOnSuccessListener
-                }
+        val visibleNames = mutableListOf<String>()
+        val visibleIds = mutableListOf<String>()
 
-                val checked = BooleanArray(techNames.size)
-                val namesArray = techNames.toTypedArray()
-                val builder = AlertDialog.Builder(this)
-                    .setTitle("Pilih teknisi untuk jadwal ini")
-                    .setMultiChoiceItems(namesArray, checked) { _, which, isChecked ->
-                        if (isChecked) selectedIndices.add(which) else selectedIndices.remove(which)
-                    }
-                    .setPositiveButton("Buat Jadwal") { dialog, _ ->
-                        if (selectedIndices.isEmpty()) {
-                            Toast.makeText(this, "Pilih minimal 1 teknisi", Toast.LENGTH_SHORT).show()
-                            return@setPositiveButton
-                        }
-                        createScheduleFromRequestAndConfirm()
-                        dialog.dismiss()
-                    }
-                    .setNegativeButton("Batal", null)
-                builder.show()
+        for (i in allTechNames.indices) {
+            val docFields = if (i < allTechDocs.size) allTechDocs[i] else emptyMap<String, Any>()
+            val techId = allTechIds.getOrNull(i) ?: continue
+            val techName = allTechNames[i]
+            val isUnavailable = technicianIsUnavailableForDate(docFields, requestDateStr)
+            if (!isUnavailable) {
+                visibleNames.add(techName)
+                visibleIds.add(techId)
             }
-            .addOnFailureListener {
-                Toast.makeText(this, "Gagal memuat teknisi: ${it.message}", Toast.LENGTH_SHORT).show()
+        }
+
+        if (visibleNames.isEmpty()) {
+            Toast.makeText(this, "Tidak ada teknisi tersedia untuk tanggal $requestDateStr", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val selected = BooleanArray(visibleNames.size)
+        visibleNames.forEachIndexed { idx, name ->
+            selected[idx] = selectedTechNames.contains(name)
+        }
+
+        AlertDialog.Builder(this)
+            .setTitle("Pilih Teknisi")
+            .setMultiChoiceItems(visibleNames.toTypedArray(), selected) { _, which, checked ->
+                val name = visibleNames[which]
+                val id = visibleIds[which]
+                if (checked) {
+                    if (!selectedTechNames.contains(name)) {
+                        selectedTechNames.add(name)
+                        selectedTechIds.add(id)
+                    }
+                } else {
+                    selectedTechNames.remove(name)
+                    selectedTechIds.remove(id)
+                }
             }
+            .setPositiveButton("OK") { d, _ ->
+                // show chosen names somewhere, or just keep them for approve
+                d.dismiss()
+            }
+            .setNegativeButton("Batal", null)
+            .show()
     }
 
-    private fun createScheduleFromRequestAndConfirm() {
-        // first fetch the request doc fields
-        db.collection("requests").document(requestId).get()
-            .addOnSuccessListener { doc ->
-                if (!doc.exists()) {
-                    Toast.makeText(this, "Request not found", Toast.LENGTH_SHORT).show()
-                    return@addOnSuccessListener
-                }
+    private fun technicianIsUnavailableForDate(docFields: Map<String, Any>, targetDateStr: String): Boolean {
+        val arr = docFields["unavailablePeriods"] as? List<*>
+        if (arr.isNullOrEmpty()) return false
 
-                val date = doc.getString("date") ?: ""
-                val time = doc.getString("time") ?: ""
-                val customerName = doc.getString("name") ?: ""
-                val address = doc.getString("address") ?: ""
+        val targetDate = try {
+            dateFormat.parse(targetDateStr) ?: return false
+        } catch (e: Exception) {
+            return false
+        }
 
-                val selectedNames = selectedIndices.map { techNames[it] }
-                val selectedIds = selectedIndices.map { techIds[it] }
+        @Suppress("UNCHECKED_CAST")
+        for (item in arr) {
+            val m = item as? Map<*, *> ?: continue
+            val s = m["start"]?.toString() ?: continue
+            val e = m["end"]?.toString() ?: continue
+            val start = try { dateFormat.parse(s) } catch (_: Exception) { null }
+            val end = try { dateFormat.parse(e) } catch (_: Exception) { null }
+            if (start == null || end == null) continue
+            if (!targetDate.before(start) && !targetDate.after(end)) return true
+        }
+        return false
+    }
 
-                val data = hashMapOf<String, Any>(
-                    "requestId" to requestId,
-                    "origin" to "request",
-                    "date" to date,
-                    "time" to time,
-                    "customerName" to customerName,
-                    "address" to address,
-                    "technicians" to selectedNames.joinToString(", "),
-                    "technicianIds" to selectedIds,
-                    "status" to "assigned",
-                    "jobStatus" to "assigned",
-                    "leaderId" to leaderId,
-                    "createdAt" to com.google.firebase.Timestamp.now()
+    private fun confirmApprove() {
+        val unitsFromRequest = requestData.units.map { unit ->
+            mapOf(
+                "brand" to (unit["brand"] ?: ""),
+                "pk" to (unit["pk"] ?: ""),
+                "workType" to (unit["workType"] ?: "")
+            )
+        }
+
+        val scheduleDoc = hashMapOf<String, Any>(
+            "origin" to "request",
+            "customerName" to requestData.name,
+            "address" to requestData.address,
+            "date" to requestData.date,
+            "time" to requestData.time,
+            FirestoreFields.FIELD_TECHNICIANS to selectedTechNames,
+            FirestoreFields.FIELD_TECHNICIAN_IDS to selectedTechIds,
+            FirestoreFields.FIELD_ASSIGNED_TECHNICIAN_IDS to selectedTechIds,
+            "units" to unitsFromRequest,
+            FirestoreFields.FIELD_JOB_STATUS to "assigned",
+            "status" to "assigned",
+            "requestId" to requestId,
+            FirestoreFields.FIELD_DOCUMENTATION to requestData.documentation.ifEmpty { listOf<String>() },
+            "createdAt" to Timestamp.now()
+        )
+
+        db.collection(FirestoreFields.SCHEDULES)
+            .add(scheduleDoc)
+            .addOnSuccessListener { docRef ->
+                val updates = hashMapOf<String, Any>(
+                    FirestoreFields.FIELD_SCHEDULE_ID to docRef.id,
+                    FirestoreFields.FIELD_JOB_STATUS to "assigned",
+                    FirestoreFields.FIELD_TECHNICIAN_IDS to selectedTechIds
                 )
-
-                // create schedule and update request
-                db.collection("schedules")
-                    .add(data)
-                    .addOnSuccessListener { scheduleRef ->
-                        db.collection("requests").document(requestId)
-                            .update(mapOf("status" to "confirmed", "scheduleId" to scheduleRef.id))
-                            .addOnSuccessListener {
-                                Toast.makeText(this, "Request confirmed and schedule created", Toast.LENGTH_SHORT).show()
-                                finish()
-                            }
-                            .addOnFailureListener { e ->
-                                Toast.makeText(this, "Failed to update request: ${e.message}", Toast.LENGTH_SHORT).show()
-                            }
+                db.collection(FirestoreFields.REQUESTS).document(requestId)
+                    .update(updates as Map<String, Any>)
+                    .addOnSuccessListener {
+                        Toast.makeText(this, "Request approved and schedule created.", Toast.LENGTH_SHORT).show()
+                        startActivity(Intent(this, LeaderConfirmationActivity::class.java))
+                        finish()
                     }
                     .addOnFailureListener { e ->
-                        Toast.makeText(this, "Failed to create schedule: ${e.message}", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this, "Schedule created but failed to update request: ${e.message}", Toast.LENGTH_LONG).show()
                     }
             }
             .addOnFailureListener { e ->
-                Toast.makeText(this, "Error reading request: ${e.message}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Failed to create schedule: ${e.message}", Toast.LENGTH_LONG).show()
             }
     }
 
-    private fun showRejectReasonDialog() {
-        val dialogView = layoutInflater.inflate(R.layout.dialog_reject_reason, null, false)
-        val radioGroup = dialogView.findViewById<RadioGroup>(R.id.radioRejectReasons)
-        val edtOther = dialogView.findViewById<EditText>(R.id.edtOtherReason)
-
+    private fun showRejectDialog() {
+        val view = layoutInflater.inflate(R.layout.dialog_reject_reason, null)
         val dialog = AlertDialog.Builder(this)
-            .setTitle("Pilih Alasan Penolakan")
-            .setView(dialogView)
-            .setPositiveButton("Submit") { _, _ ->
+            .setTitle("Tolak Permintaan")
+            .setView(view)
+            .setPositiveButton("Kirim") { d, _ ->
+                val radioGroup = view.findViewById<RadioGroup>(R.id.radioRejectReasons)
                 val selectedId = radioGroup.checkedRadioButtonId
-                val finalReason = if (selectedId != -1 && selectedId != R.id.rbOther) {
-                    dialogView.findViewById<RadioButton>(selectedId).text.toString()
-                } else {
-                    edtOther.text.toString().ifBlank { "No reason provided" }
+                val reason = when (selectedId) {
+                    R.id.rbTechUnavailable -> "Teknisi Tidak Tersedia"
+                    R.id.rbCustomerUnreachable -> "Jadwal Penuh"
+                    R.id.rbWrongAddress -> "Lokasi Terlalu Jauh"
+                    R.id.rbOther -> view.findViewById<EditText>(R.id.edtOtherReason).text.toString().trim()
+                    else -> "Ditolak"
                 }
-                rejectRequest(finalReason)
+
+                db.collection(FirestoreFields.REQUESTS).document(requestId)
+                    .update(mapOf("status" to "rejected", "rejectReason" to reason))
+                    .addOnSuccessListener {
+                        Toast.makeText(this, "Permintaan ditolak.", Toast.LENGTH_SHORT).show()
+                        startActivity(Intent(this, LeaderConfirmationActivity::class.java))
+                        finish()
+                    }
+                    .addOnFailureListener { e ->
+                        Toast.makeText(this, "Gagal menolak: ${e.message}", Toast.LENGTH_SHORT).show()
+                    }
+                d.dismiss()
             }
             .setNegativeButton("Batal", null)
             .create()
-        dialog.show()
-    }
 
-    private fun rejectRequest(reason: String) {
-        db.collection("requests")
-            .document(requestId)
-            .update(mapOf("status" to "rejected", "rejectReason" to reason, "previousStatus" to "pending"))
-            .addOnSuccessListener {
-                Toast.makeText(this, "Request rejected: $reason", Toast.LENGTH_SHORT).show()
-                finish()
-            }
-            .addOnFailureListener { e ->
-                Toast.makeText(this, "Failed: ${e.message}", Toast.LENGTH_SHORT).show()
-            }
+        dialog.show()
     }
 }

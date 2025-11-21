@@ -4,21 +4,27 @@ import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.widget.Button
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.GridLayoutManager
-import com.google.firebase.firestore.FirebaseFirestore
+import androidx.recyclerview.widget.RecyclerView
 
 class TechnicianJobDetail : AppCompatActivity() {
 
-    private val PICK_IMAGES = 2001
-    private var selectedUris = mutableListOf<Uri>()
+    private val PICK_IMAGES_REQUEST = 101
+    private lateinit var recyclerPhotos: RecyclerView
+    private lateinit var photoAdapter: DocumentationPreviewAdapter
+    private val photoUris = mutableListOf<Uri>()
 
-    private lateinit var requestId: String
-    private lateinit var requestData: RequestData
-    private val db = FirebaseFirestore.getInstance()
+    private lateinit var tvCustomerName: TextView
+    private lateinit var tvCustomerAddress: TextView
+    private lateinit var tvScheduledTime: TextView
+    private lateinit var btnSelectImages: Button
+    private lateinit var btnUpload: Button
 
-    private lateinit var adapter: DocumentationPreviewAdapter
+    private var requestId: String = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -26,100 +32,64 @@ class TechnicianJobDetail : AppCompatActivity() {
 
         requestId = intent.getStringExtra("requestId") ?: ""
 
-        adapter = DocumentationPreviewAdapter()
-        findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.recyclerPhotos).apply {
-            layoutManager = GridLayoutManager(this@TechnicianJobDetail, 3)
-            adapter = this@TechnicianJobDetail.adapter
-        }
+        tvCustomerName = findViewById(R.id.tvCustomerName)
+        tvCustomerAddress = findViewById(R.id.tvCustomerAddress)
+        tvScheduledTime = findViewById(R.id.tvScheduledTime)
+        btnSelectImages = findViewById(R.id.btnSelectImages)
+        btnUpload = findViewById(R.id.btnUpload)
 
-        loadRequestDetails()
+        recyclerPhotos = findViewById(R.id.recyclerPhotos)
+        recyclerPhotos.layoutManager = GridLayoutManager(this, 3)
 
-        findViewById<android.view.View>(R.id.btnSelectImages).setOnClickListener {
-            pickImages()
-        }
+        // Fixed constructor — now valid
+        photoAdapter = DocumentationPreviewAdapter(photoUris, mutableListOf())
+        recyclerPhotos.adapter = photoAdapter
 
-        findViewById<android.view.View>(R.id.btnUpload).setOnClickListener {
-            uploadDocumentation()
-        }
-
-        // Bottom nav
-        findViewById<android.view.View>(R.id.navHome).setOnClickListener {
-            startActivity(Intent(this, TechnicianDashboard::class.java))
-            finish()
-        }
-
-        findViewById<android.view.View>(R.id.navHistory).setOnClickListener {
-            startActivity(Intent(this, TechnicianHistory::class.java))
-            finish()
-        }
+        btnSelectImages.setOnClickListener { selectImages() }
+        btnUpload.setOnClickListener { uploadImages() }
     }
 
-    private fun loadRequestDetails() {
-        db.collection("requests").document(requestId)
-            .get()
-            .addOnSuccessListener { doc ->
-                if (!doc.exists()) {
-                    Toast.makeText(this, "Request tidak ditemukan", Toast.LENGTH_SHORT).show()
-                    finish()
-                    return@addOnSuccessListener
-                }
-
-                requestData = RequestData.fromFirestore(doc)
-
-                findViewById<android.widget.TextView>(R.id.tvCustomerName).text = requestData.name
-                findViewById<android.widget.TextView>(R.id.tvCustomerAddress).text = requestData.address
-                findViewById<android.widget.TextView>(R.id.tvScheduledTime).text =
-                    "${requestData.date} • ${requestData.time}"
-
-                adapter.setExistingPhotos(requestData.documentation)
-            }
-            .addOnFailureListener {
-                Toast.makeText(this, "Gagal memuat detail", Toast.LENGTH_SHORT).show()
-            }
-    }
-
-    private fun pickImages() {
+    private fun selectImages() {
         val intent = Intent(Intent.ACTION_GET_CONTENT)
         intent.type = "image/*"
         intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
-        startActivityForResult(Intent.createChooser(intent, "Pilih maksimal 3 gambar"), PICK_IMAGES)
+        startActivityForResult(intent, PICK_IMAGES_REQUEST)
     }
 
-    override fun onActivityResult(reqCode: Int, resCode: Int, data: Intent?) {
-        super.onActivityResult(reqCode, resCode, data)
+    override fun onActivityResult(req: Int, res: Int, data: Intent?) {
+        super.onActivityResult(req, res, data)
 
-        if (reqCode == PICK_IMAGES && resCode == Activity.RESULT_OK) {
-            selectedUris.clear()
+        if (req == PICK_IMAGES_REQUEST && res == Activity.RESULT_OK) {
 
+            photoUris.clear()
+
+            // MULTIPLE IMAGES
             if (data?.clipData != null) {
-                val total = minOf(data.clipData!!.itemCount, 3)
-                for (i in 0 until total) {
-                    selectedUris.add(data.clipData!!.getItemAt(i).uri)
+                val count = data.clipData!!.itemCount
+                for (i in 0 until count) {
+                    // FIXED HERE — correct API
+                    val uri = data.clipData!!.getItemAt(i).uri
+                    photoUris.add(uri)
                 }
-            } else if (data?.data != null) {
-                selectedUris.add(data.data!!)
+            }
+            // SINGLE IMAGE
+            else if (data?.data != null) {
+                photoUris.add(data.data!!)
             }
 
-            adapter.setSelectedPhotos(selectedUris)
+            photoAdapter.notifyDataSetChanged()
         }
     }
 
-    private fun uploadDocumentation() {
-        if (selectedUris.isEmpty()) {
-            Toast.makeText(this, "Pilih gambar terlebih dahulu.", Toast.LENGTH_SHORT).show()
+    private fun uploadImages() {
+        if (photoUris.isEmpty()) {
+            Toast.makeText(this, "Pilih gambar dahulu", Toast.LENGTH_SHORT).show()
             return
         }
 
-        DocumentationUploader.uploadImagesForRequest(
-            ctx = this,
-            requestId = requestId,
-            uris = selectedUris,
-            contentResolverProvider = { contentResolver }
-        ) { success, msg ->
-            runOnUiThread {
-                Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
-                if (success) loadRequestDetails()
-            }
+        DocumentationUploader.uploadImagesAndAttach(this, requestId, photoUris) { success, msg ->
+            Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
+            if (success) finish()
         }
     }
 }

@@ -10,7 +10,7 @@ import androidx.recyclerview.widget.RecyclerView
 
 class LeaderRequestAdapter(
     private val context: Context,
-    private val requests: List<RequestData>
+    private var requests: MutableList<RequestData>
 ) : RecyclerView.Adapter<LeaderRequestAdapter.ViewHolder>() {
 
     class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
@@ -34,7 +34,6 @@ class LeaderRequestAdapter(
         holder.tvDateTime.text = "${req.date} • ${req.time}"
         holder.tvStatusBadge.text = req.status
 
-        // Status badge color (normalized)
         when (req.status.lowercase()) {
             "pending" -> holder.tvStatusBadge.setBackgroundResource(R.drawable.button_light_green)
             "confirmed" -> holder.tvStatusBadge.setBackgroundResource(R.drawable.button_light_green)
@@ -44,7 +43,6 @@ class LeaderRequestAdapter(
             else -> holder.tvStatusBadge.setBackgroundResource(R.drawable.dialog_background)
         }
 
-        // Click → go to detail page based on status (reschedule goes to reschedule detail)
         holder.itemView.setOnClickListener {
             val intent = if (req.status.lowercase().contains("reschedule")) {
                 Intent(context, LeaderRescheduleDetailActivity::class.java)
@@ -55,5 +53,14 @@ class LeaderRequestAdapter(
             intent.putExtra("requestId", req.id)
             context.startActivity(intent)
         }
+    }
+
+    /**
+     * Replace adapter data (safe) and notify.
+     */
+    fun updateData(newList: List<RequestData>) {
+        requests.clear()
+        requests.addAll(newList)
+        notifyDataSetChanged()
     }
 }

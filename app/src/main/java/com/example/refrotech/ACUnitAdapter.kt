@@ -3,53 +3,37 @@ package com.example.refrotech
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ImageView
+import android.widget.FrameLayout
 import android.widget.TextView
-import android.widget.Toast
 import androidx.recyclerview.widget.RecyclerView
 
-class ACUnitAdapter(private val acUnits: MutableList<ACUnit>) :
-    RecyclerView.Adapter<ACUnitAdapter.ACUnitViewHolder>() {
+class ACUnitAdapter(
+    private val items: MutableList<ACUnit>,
+    private val onDelete: ((Int) -> Unit)? = null
+) : RecyclerView.Adapter<ACUnitAdapter.VH>() {
 
-    class ACUnitViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        val tvMerk: TextView = itemView.findViewById(R.id.tvMerkAC)
-        val tvPK: TextView = itemView.findViewById(R.id.tvJumlahPK)
+    inner class VH(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        val tvBrand: TextView = itemView.findViewById(R.id.tvMerkAC)
+        val tvPk: TextView = itemView.findViewById(R.id.tvJumlahPK)
         val tvWork: TextView = itemView.findViewById(R.id.tvJenisPekerjaan)
-        val btnDelete: ImageView = itemView.findViewById(R.id.btnDeleteUnit)
+        val btnDelete: FrameLayout? = itemView.findViewById(R.id.btnDeleteUnit)
     }
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ACUnitViewHolder {
-        val view = LayoutInflater.from(parent.context)
-            .inflate(R.layout.item_ac_unit, parent, false)
-        return ACUnitViewHolder(view)
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
+        val v = LayoutInflater.from(parent.context).inflate(R.layout.item_ac_unit, parent, false)
+        return VH(v)
     }
 
-    override fun onBindViewHolder(holder: ACUnitViewHolder, position: Int) {
-        val item = acUnits[position]
-        holder.tvMerk.text = "Merk AC: ${item.brand}"
-        holder.tvPK.text = "Jumlah PK: ${item.pk}"
-        holder.tvWork.text = "Jenis Pekerjaan: ${item.workType}"
+    override fun getItemCount(): Int = items.size
 
-        holder.btnDelete.setOnClickListener {
-            val removed = acUnits.removeAt(holder.adapterPosition)
-            notifyItemRemoved(holder.adapterPosition)
-            Toast.makeText(
-                holder.itemView.context,
-                "Unit ${removed.brand} dihapus",
-                Toast.LENGTH_SHORT
-            ).show()
+    override fun onBindViewHolder(holder: VH, position: Int) {
+        val unit = items[position]
+        holder.tvBrand.text = unit.brand
+        holder.tvPk.text = unit.pk
+        holder.tvWork.text = unit.workType
+
+        holder.btnDelete?.setOnClickListener {
+            onDelete?.invoke(position)
         }
-    }
-
-    override fun getItemCount(): Int = acUnits.size
-
-    fun add(item: ACUnit) {
-        acUnits.add(item)
-        notifyItemInserted(acUnits.size - 1)
-    }
-
-    fun clearAll() {
-        acUnits.clear()
-        notifyDataSetChanged()
     }
 }

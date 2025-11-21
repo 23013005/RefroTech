@@ -1,33 +1,26 @@
 package com.example.refrotech
 
-import android.app.AlertDialog
+import android.app.DatePickerDialog
 import android.content.Intent
 import android.os.Bundle
-import android.text.InputType
 import android.view.LayoutInflater
-import android.widget.EditText
-import android.widget.FrameLayout
-import android.widget.ImageView
-import android.widget.LinearLayout
-import android.widget.Toast
+import android.view.inputmethod.EditorInfo
+import android.widget.*
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
 import com.google.firebase.firestore.FirebaseFirestore
+import java.text.SimpleDateFormat
+import java.util.*
 
 class TechnicianManagement : AppCompatActivity() {
 
-    private lateinit var recyclerTechnicians: RecyclerView
-    private lateinit var btnAddTechnician: FrameLayout
-
-    // BOTTOM NAVIGATION
-    private lateinit var navDashboard: LinearLayout
-    private lateinit var navTechnician: LinearLayout
-    private lateinit var navRequests: LinearLayout
-
-    private lateinit var technicianAdapter: TechnicianManageAdapter
-    private val technicianList = mutableListOf<Technician>()
     private val db = FirebaseFirestore.getInstance()
+    private lateinit var recyclerTechnicians: androidx.recyclerview.widget.RecyclerView
+    private lateinit var btnAddTechnician: FrameLayout
+    private lateinit var adapter: TechnicianManageAdapter
+
+    private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -36,87 +29,56 @@ class TechnicianManagement : AppCompatActivity() {
         recyclerTechnicians = findViewById(R.id.recyclerTechnicians)
         btnAddTechnician = findViewById(R.id.btnAddTechnician)
 
-        navDashboard = findViewById(R.id.navDashboard)
-        navTechnician = findViewById(R.id.navTechnician)
-        navRequests = findViewById(R.id.navRequests)
-
-        recyclerTechnicians.layoutManager = LinearLayoutManager(this)
-
-        technicianAdapter = TechnicianManageAdapter(
-            technicians = technicianList,
-            onEditClick = { technician -> showEditDialog(technician) },
-            onDeleteClick = { technician -> confirmDeleteTechnician(technician) }
+        adapter = TechnicianManageAdapter(
+            mutableListOf(),
+            onEdit = { id -> showEditDialog(id) },
+            onDelete = { id -> confirmDeleteTechnician(id) },
+            onSetAvailability = { id, name -> showSetUnavailabilityDialog(id, name) }
         )
 
-        recyclerTechnicians.adapter = technicianAdapter
+        recyclerTechnicians.layoutManager = LinearLayoutManager(this)
+        recyclerTechnicians.adapter = adapter
 
-        // Load technicians from Firestore
-        loadTechnicians()
-
-        // Add technician
         btnAddTechnician.setOnClickListener { showAddTechnicianDialog() }
 
-        // ===== BOTTOM NAVIGATION =====
-
-        // Go to Leader Dashboard
-        navDashboard.setOnClickListener {
-            val intent = Intent(this, leader_dashboard::class.java)
-            startActivity(intent)
-            finish()
-        }
-
-        // Already in technician page
-        navTechnician.setOnClickListener {
-            Toast.makeText(this, "Already in Technician Management", Toast.LENGTH_SHORT).show()
-        }
-
-        // Go to Leader Confirmation Page (Requests)
-        navRequests.setOnClickListener {
-            val intent = Intent(this, LeaderConfirmationActivity::class.java)
-            startActivity(intent)
-        }
+        loadTechnicians()
+        setupBottomNav()
     }
 
     private fun loadTechnicians() {
-        technicianList.clear()
-        db.collection("users")
+        db.collection(FirestoreFields.USERS)
             .whereEqualTo("role", "technician")
             .get()
-            .addOnSuccessListener { result ->
-                for (doc in result) {
-                    val technician = Technician(
-                        id = doc.id,
-                        name = doc.getString("name") ?: "Tanpa Nama",
-                        username = doc.getString("username") ?: "-",
-                        password = doc.getString("password") ?: "-"
+            .addOnSuccessListener { snap ->
+                val docs = snap.documents.map { d ->
+                    mapOf(
+                        "id" to d.id,
+                        "name" to (d.getString("name") ?: ""),
+                        "username" to (d.getString("username") ?: "")
                     )
-                    technicianList.add(technician)
                 }
-                technicianAdapter.notifyDataSetChanged()
+                adapter.updateData(docs)
             }
-            .addOnFailureListener {
-                Toast.makeText(this, "Gagal memuat data teknisi.", Toast.LENGTH_SHORT).show()
+            .addOnFailureListener { e ->
+                Toast.makeText(this, "Gagal memuat teknisi: ${e.message}", Toast.LENGTH_SHORT).show()
             }
     }
 
-    // ========= ADD TECHNICIAN =========
     private fun showAddTechnicianDialog() {
-        val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_add_technician, null)
-
-        val etName = dialogView.findViewById<EditText>(R.id.etTechnicianName)
-        val etUsername = dialogView.findViewById<EditText>(R.id.etTechnicianUsername)
-        val etPassword = dialogView.findViewById<EditText>(R.id.etTechnicianPassword)
-        val toggleBtn = dialogView.findViewById<ImageView>(R.id.btnTogglePassword)
+        val view = LayoutInflater.from(this).inflate(R.layout.dialog_add_technician, null)
+        val etName = view.findViewById<EditText>(R.id.etTechnicianName)
+        val etUsername = view.findViewById<EditText>(R.id.etTechnicianUsername)
+        val etPassword = view.findViewById<EditText>(R.id.etTechnicianPassword)
+        val toggleBtn = view.findViewById<ImageView>(R.id.btnTogglePassword)
 
         var isVisible = false
-
-        toggleBtn.setOnClickListener {
+        toggleBtn?.setOnClickListener {
             isVisible = !isVisible
             if (isVisible) {
-                etPassword.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
+                etPassword.inputType = EditorInfo.TYPE_CLASS_TEXT or EditorInfo.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
                 toggleBtn.setImageResource(R.drawable.ic_eye_open)
             } else {
-                etPassword.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+                etPassword.inputType = EditorInfo.TYPE_CLASS_TEXT or EditorInfo.TYPE_TEXT_VARIATION_PASSWORD
                 toggleBtn.setImageResource(R.drawable.ic_eye_closed)
             }
             etPassword.setSelection(etPassword.text.length)
@@ -124,115 +86,257 @@ class TechnicianManagement : AppCompatActivity() {
 
         AlertDialog.Builder(this)
             .setTitle("Tambah Teknisi")
-            .setView(dialogView)
-            .setPositiveButton("Tambah") { _, _ ->
+            .setView(view)
+            .setPositiveButton("Tambah") { dialog, _ ->
                 val name = etName.text.toString().trim()
                 val username = etUsername.text.toString().trim()
                 val password = etPassword.text.toString().trim()
 
-                if (name.isNotEmpty() && username.isNotEmpty() && password.isNotEmpty()) {
-                    val data = hashMapOf(
-                        "name" to name,
-                        "username" to username,
-                        "password" to password,
-                        "role" to "technician"
-                    )
-
-                    db.collection("users")
-                        .add(data)
-                        .addOnSuccessListener {
-                            Toast.makeText(this, "Teknisi berhasil ditambahkan", Toast.LENGTH_SHORT).show()
-                            loadTechnicians()
-                        }
-                        .addOnFailureListener {
-                            Toast.makeText(this, "Gagal menambah teknisi", Toast.LENGTH_SHORT).show()
-                        }
-                } else {
-                    Toast.makeText(this, "Isi semua kolom!", Toast.LENGTH_SHORT).show()
+                if (name.isEmpty() || username.isEmpty() || password.isEmpty()) {
+                    Toast.makeText(this, "Lengkapi data", Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
                 }
+
+                val data = hashMapOf<String, Any>(
+                    "name" to name,
+                    "username" to username,
+                    "password" to password,
+                    "role" to "technician"
+                )
+
+                db.collection(FirestoreFields.USERS)
+                    .add(data)
+                    .addOnSuccessListener {
+                        Toast.makeText(this, "Teknisi ditambahkan", Toast.LENGTH_SHORT).show()
+                        loadTechnicians()
+                        dialog.dismiss()
+                    }
+                    .addOnFailureListener { e ->
+                        Toast.makeText(this, "Gagal: ${e.message}", Toast.LENGTH_SHORT).show()
+                    }
             }
             .setNegativeButton("Batal", null)
-            .create()
             .show()
     }
 
-    // ========= EDIT TECHNICIAN =========
-    private fun showEditDialog(technician: Technician) {
-        val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_add_technician, null)
+    private fun showEditDialog(techId: String) {
+        db.collection(FirestoreFields.USERS).document(techId).get()
+            .addOnSuccessListener { doc ->
+                if (!doc.exists()) {
+                    Toast.makeText(this, "Data teknisi tidak ditemukan", Toast.LENGTH_SHORT).show()
+                    return@addOnSuccessListener
+                }
 
-        val etName = dialogView.findViewById<EditText>(R.id.etTechnicianName)
-        val etUsername = dialogView.findViewById<EditText>(R.id.etTechnicianUsername)
-        val etPassword = dialogView.findViewById<EditText>(R.id.etTechnicianPassword)
-        val toggleBtn = dialogView.findViewById<ImageView>(R.id.btnTogglePassword)
+                val view = LayoutInflater.from(this).inflate(R.layout.dialog_add_technician, null)
+                val etName = view.findViewById<EditText>(R.id.etTechnicianName)
+                val etUsername = view.findViewById<EditText>(R.id.etTechnicianUsername)
+                val etPassword = view.findViewById<EditText>(R.id.etTechnicianPassword)
+                val toggleBtn = view.findViewById<ImageView>(R.id.btnTogglePassword)
 
-        etName.setText(technician.name)
-        etUsername.setText(technician.username)
-        etPassword.setText(technician.password)
+                etName.setText(doc.getString("name") ?: "")
+                etUsername.setText(doc.getString("username") ?: "")
+                etPassword.setText(doc.getString("password") ?: "")
 
-        var isVisible = false
+                var isVisible = false
+                toggleBtn?.setOnClickListener {
+                    isVisible = !isVisible
+                    if (isVisible) {
+                        etPassword.inputType = EditorInfo.TYPE_CLASS_TEXT or EditorInfo.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
+                        toggleBtn.setImageResource(R.drawable.ic_eye_open)
+                    } else {
+                        etPassword.inputType = EditorInfo.TYPE_CLASS_TEXT or EditorInfo.TYPE_TEXT_VARIATION_PASSWORD
+                        toggleBtn.setImageResource(R.drawable.ic_eye_closed)
+                    }
+                    etPassword.setSelection(etPassword.text.length)
+                }
 
-        toggleBtn.setOnClickListener {
-            isVisible = !isVisible
-            if (isVisible) {
-                etPassword.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD
-                toggleBtn.setImageResource(R.drawable.ic_eye_open)
-            } else {
-                etPassword.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
-                toggleBtn.setImageResource(R.drawable.ic_eye_closed)
-            }
-            etPassword.setSelection(etPassword.text.length)
-        }
+                AlertDialog.Builder(this)
+                    .setTitle("Edit Teknisi")
+                    .setView(view)
+                    .setPositiveButton("Simpan") { dialog, _ ->
+                        val newName = etName.text.toString().trim()
+                        val newUsername = etUsername.text.toString().trim()
+                        val newPassword = etPassword.text.toString().trim()
 
-        AlertDialog.Builder(this)
-            .setTitle("Edit Teknisi")
-            .setView(dialogView)
-            .setPositiveButton("Simpan") { _, _ ->
-                val updatedName = etName.text.toString().trim()
-                val updatedUsername = etUsername.text.toString().trim()
-                val updatedPassword = etPassword.text.toString().trim()
+                        if (newName.isEmpty() || newUsername.isEmpty() || newPassword.isEmpty()) {
+                            Toast.makeText(this, "Lengkapi data", Toast.LENGTH_SHORT).show()
+                            return@setPositiveButton
+                        }
 
-                if (updatedName.isNotEmpty() && updatedUsername.isNotEmpty() && updatedPassword.isNotEmpty()) {
-                    db.collection("users").document(technician.id)
-                        .update(
-                            mapOf(
-                                "name" to updatedName,
-                                "username" to updatedUsername,
-                                "password" to updatedPassword
-                            )
+                        val updates = hashMapOf<String, Any>(
+                            "name" to newName,
+                            "username" to newUsername,
+                            "password" to newPassword
                         )
-                        .addOnSuccessListener {
-                            Toast.makeText(this, "Data teknisi diperbarui", Toast.LENGTH_SHORT).show()
-                            loadTechnicians()
-                        }
-                        .addOnFailureListener {
-                            Toast.makeText(this, "Gagal memperbarui data", Toast.LENGTH_SHORT).show()
-                        }
-                } else {
-                    Toast.makeText(this, "Isi semua kolom!", Toast.LENGTH_SHORT).show()
-                }
+
+                        db.collection(FirestoreFields.USERS).document(techId)
+                            .update(updates)
+                            .addOnSuccessListener {
+                                Toast.makeText(this, "Perubahan disimpan", Toast.LENGTH_SHORT).show()
+                                loadTechnicians()
+                            }
+                            .addOnFailureListener { e ->
+                                Toast.makeText(this, "Gagal menyimpan: ${e.message}", Toast.LENGTH_SHORT).show()
+                            }
+
+                        dialog.dismiss()
+                    }
+                    .setNegativeButton("Batal", null)
+                    .show()
             }
-            .setNegativeButton("Batal", null)
-            .create()
-            .show()
+            .addOnFailureListener { e ->
+                Toast.makeText(this, "Gagal memuat teknisi: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
     }
 
-    private fun confirmDeleteTechnician(technician: Technician) {
+    private fun confirmDeleteTechnician(techId: String) {
         AlertDialog.Builder(this)
             .setTitle("Hapus Teknisi")
-            .setMessage("Apakah Anda yakin ingin menghapus ${technician.name}?")
-            .setPositiveButton("Hapus") { _, _ ->
-                db.collection("users").document(technician.id)
+            .setMessage("Hapus teknisi ini?")
+            .setPositiveButton("Ya") { _, _ ->
+                db.collection(FirestoreFields.USERS).document(techId)
                     .delete()
                     .addOnSuccessListener {
                         Toast.makeText(this, "Teknisi dihapus", Toast.LENGTH_SHORT).show()
                         loadTechnicians()
                     }
-                    .addOnFailureListener {
-                        Toast.makeText(this, "Gagal menghapus teknisi", Toast.LENGTH_SHORT).show()
+                    .addOnFailureListener { e ->
+                        Toast.makeText(this, "Gagal: ${e.message}", Toast.LENGTH_SHORT).show()
                     }
             }
             .setNegativeButton("Batal", null)
-            .create()
             .show()
+    }
+
+    /**
+     * Show dialog to set unavailability for a technician.
+     *
+     * New behaviour (Option A):
+     * - We store ONLY unavailablePeriods: a single-element list with a map { "start": yyyy-MM-dd, "end": yyyy-MM-dd? }
+     * - If "until further notice" is selected, end will be saved as null in the map.
+     * - This replaces the old unavailableFrom/unavailableTo fields.
+     */
+    private fun showSetUnavailabilityDialog(techId: String, techName: String) {
+
+        db.collection(FirestoreFields.USERS).document(techId).get()
+            .addOnSuccessListener { doc ->
+
+                // Read existing unavailablePeriods first (if any). We'll pre-fill with first element.
+                var currentStart: String? = null
+                var currentEnd: String? = null
+                val periods = doc.get("unavailablePeriods") as? List<*>
+                if (!periods.isNullOrEmpty()) {
+                    val first = periods[0] as? Map<*, *>
+                    currentStart = first?.get("start")?.toString()
+                    // treat explicit null as null; Firestore might render missing "end" as null or missing
+                    currentEnd = if (first?.containsKey("end") == true) {
+                        first["end"]?.toString()
+                    } else {
+                        null
+                    }
+                }
+
+                val view = LayoutInflater.from(this).inflate(R.layout.dialog_set_unavailability, null)
+                val btnStart = view.findViewById<Button>(R.id.btnStartDate)
+                val btnEnd = view.findViewById<Button>(R.id.btnEndDate)
+                val cbUntilFurther = view.findViewById<CheckBox>(R.id.cbUntilFurther)
+                val tvChosen = view.findViewById<TextView>(R.id.tvChosenRange)
+
+                var startStr = currentStart
+                var endStr = currentEnd
+
+                // Pre-fill UI
+                if (startStr != null) {
+                    if (endStr == null) tvChosen.text = "Start: $startStr\nEnd: (until further notice)"
+                    else tvChosen.text = "Start: $startStr\nEnd: $endStr"
+                } else tvChosen.text = "Start: -\nEnd: -"
+
+                if (startStr != null && endStr == null) cbUntilFurther.isChecked = true
+
+                btnStart.setOnClickListener {
+                    val cal = Calendar.getInstance()
+                    DatePickerDialog(this, { _, y, m, d ->
+                        val c = Calendar.getInstance()
+                        c.set(y, m, d)
+                        startStr = dateFormat.format(c.time)
+                        tvChosen.text = "Start: $startStr\nEnd: ${endStr ?: "-"}"
+                    }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)).show()
+                }
+
+                btnEnd.setOnClickListener {
+                    val cal = Calendar.getInstance()
+                    DatePickerDialog(this, { _, y, m, d ->
+                        val c = Calendar.getInstance()
+                        c.set(y, m, d)
+                        endStr = dateFormat.format(c.time)
+                        tvChosen.text = "Start: ${startStr ?: "-"}\nEnd: $endStr"
+                        cbUntilFurther.isChecked = false
+                    }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)).show()
+                }
+
+                cbUntilFurther.setOnCheckedChangeListener { _, checked ->
+                    if (checked) {
+                        endStr = null
+                        tvChosen.text = "Start: ${startStr ?: "-"}\nEnd: (until further notice)"
+                    } else {
+                        tvChosen.text = "Start: ${startStr ?: "-"}\nEnd: ${endStr ?: "-"}"
+                    }
+                }
+
+                AlertDialog.Builder(this)
+                    .setTitle("Set Unavailability for $techName")
+                    .setView(view)
+                    .setPositiveButton("Save") { dialog, _ ->
+
+                        val s = startStr ?: run {
+                            Toast.makeText(this, "Please choose start date", Toast.LENGTH_SHORT).show()
+                            return@setPositiveButton
+                        }
+
+                        // endStr may be null if until further
+                        val e: String? = if (cbUntilFurther.isChecked) null else endStr
+
+                        // Build single-element periods list (replace existing)
+                        val entry = if (e == null) {
+                            mapOf<String, Any?>("start" to s, "end" to null)
+                        } else {
+                            mapOf<String, Any?>("start" to s, "end" to e)
+                        }
+
+                        // Replace the unavailablePeriods field with a single-element list
+                        db.collection(FirestoreFields.USERS).document(techId)
+                            .update(mapOf("unavailablePeriods" to listOf(entry)))
+                            .addOnSuccessListener {
+                                Toast.makeText(this, "Unavailability saved", Toast.LENGTH_SHORT).show()
+                                loadTechnicians()
+                            }
+                            .addOnFailureListener { eEx ->
+                                Toast.makeText(this, "Failed to save: ${eEx.message}", Toast.LENGTH_SHORT).show()
+                            }
+
+                        dialog.dismiss()
+                    }
+                    .setNegativeButton("Cancel", null)
+                    .show()
+            }
+            .addOnFailureListener { ex ->
+                Toast.makeText(this, "Failed to load technician data: ${ex.message}", Toast.LENGTH_SHORT).show()
+            }
+    }
+
+    private fun setupBottomNav() {
+        findViewById<LinearLayout>(R.id.navDashboard).setOnClickListener {
+            startActivity(Intent(this, LeaderDashboard::class.java))
+            overridePendingTransition(0, 0)
+        }
+
+        findViewById<LinearLayout>(R.id.navTechnician).setOnClickListener {
+            // already here; do nothing or you can provide feedback
+        }
+
+        findViewById<LinearLayout>(R.id.navRequests).setOnClickListener {
+            startActivity(Intent(this, LeaderConfirmationActivity::class.java))
+            overridePendingTransition(0, 0)
+        }
     }
 }

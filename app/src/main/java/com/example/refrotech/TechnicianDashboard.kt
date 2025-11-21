@@ -10,34 +10,37 @@ import com.google.firebase.firestore.ListenerRegistration
 class TechnicianDashboard : AppCompatActivity() {
 
     private val db = FirebaseFirestore.getInstance()
+    private var scheduleListener: ListenerRegistration? = null
+
     private lateinit var recyclerSchedules: ExpandedRecyclerView
     private lateinit var adapter: ScheduleAdapter
-    private var scheduleListener: ListenerRegistration? = null
-    private var technicianId: String? = null
+
+    private var technicianId: String = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_technician_dashboard)
 
-        technicianId = intent.getStringExtra("userId") // must be passed at login
-        if (technicianId.isNullOrBlank()) {
+        technicianId = intent.getStringExtra("userId") ?: ""
+
+        recyclerSchedules = findViewById(R.id.recyclerSchedules)
+        recyclerSchedules.layoutManager = LinearLayoutManager(this)
+        adapter = ScheduleAdapter(this, emptyList())
+        recyclerSchedules.adapter = adapter
+
+        if (technicianId.isBlank()) {
             Toast.makeText(this, "Technician ID missing", Toast.LENGTH_SHORT).show()
             finish()
             return
         }
 
-        recyclerSchedules = findViewById(R.id.recyclerSchedules) // ensure layout id matches
-        recyclerSchedules.layoutManager = LinearLayoutManager(this)
-        adapter = ScheduleAdapter(this, emptyList())
-        recyclerSchedules.adapter = adapter
-
-        listenToAssignedSchedules()
+        listenAssignedSchedules()
     }
 
-    private fun listenToAssignedSchedules() {
+    private fun listenAssignedSchedules() {
         scheduleListener?.remove()
-        scheduleListener = db.collection("schedules")
-            .whereArrayContains("assignedTechnicianIds", technicianId!!)
+        scheduleListener = db.collection(FirestoreFields.SCHEDULES)
+            .whereArrayContains(FirestoreFields.FIELD_ASSIGNED_TECHNICIAN_IDS, technicianId)
             .addSnapshotListener { snaps, e ->
                 if (e != null) {
                     Toast.makeText(this, "Gagal memuat jadwal: ${e.message}", Toast.LENGTH_SHORT).show()
@@ -49,22 +52,21 @@ class TechnicianDashboard : AppCompatActivity() {
                     return@addSnapshotListener
                 }
 
-                val list = snaps.map { doc ->
-
+                val list = snaps.documents.map { doc ->
+                    val (names, ids) = FirestoreNormalizer.normalizeTechnicians(doc)
                     Schedule(
                         scheduleId = doc.id,
-                        customerName = doc.getString("customerName") ?: "-",
+                        customerName = doc.getString("customerName") ?: "",
                         date = doc.getString("date") ?: "",
                         time = doc.getString("time") ?: "",
-                        technicians = doc.getString("technicians") ?: "",
-                        technicianIds = doc.get("technicianIds") as? List<String> ?: emptyList(),
-                        address = doc.getString("address") ?: "-",
+                        technicians = names,
+                        technicianIds = ids,
+                        assignedTechnicianIds = ids,
+                        address = doc.getString("address") ?: "",
                         origin = doc.getString("origin") ?: "",
                         requestId = doc.getString("requestId") ?: ""
                     )
                 }
-
-
                 adapter.updateData(list)
             }
     }

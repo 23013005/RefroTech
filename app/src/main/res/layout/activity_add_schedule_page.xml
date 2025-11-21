@@ -1,122 +1,155 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:gravity="center_horizontal"
+    android:fillViewport="true"
     android:background="@drawable/bg_tambahjadwal"
     tools:context=".AddSchedulePage">
 
-    <!-- ===== HEADER ===== -->
     <LinearLayout
-        android:id="@+id/Header"
+        android:orientation="vertical"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:gravity="center"
-        android:orientation="vertical">
+        android:paddingBottom="50dp">
 
-        <ImageView
+        <!-- HEADER LOGO -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:layout_marginTop="20dp">
+
+            <ImageView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/refro_logo2"
+                android:contentDescription="Logo"/>
+        </LinearLayout>
+
+        <!-- PAGE TITLE -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Tambah Jadwal"
+            android:textColor="@color/black"
+            android:textSize="26sp"
+            android:gravity="center"
+            android:layout_marginTop="30dp"
+            android:fontFamily="@font/inter_bold"/>
+
+        <!-- INPUT FIELDS -->
+
+        <EditText
+            android:id="@+id/etTime"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="40dp"
+            android:layout_marginTop="30dp"
+            android:background="@drawable/input_box_login"
+            android:hint="Waktu"
+            android:inputType="none"
+            android:focusable="false"
+            android:clickable="true"
+            android:padding="14dp"
+            android:textColor="@color/black"
+            android:textSize="16sp" />
+
+        <EditText
+            android:id="@+id/etTechnician"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="40dp"
+            android:layout_marginTop="20dp"
+            android:background="@drawable/input_box_login"
+            android:hint="Nama Teknisi"
+            android:inputType="none"
+            android:focusable="false"
+            android:clickable="true"
+            android:padding="14dp"
+            android:textColor="@color/black"
+            android:textSize="16sp" />
+
+        <EditText
+            android:id="@+id/etCustomer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="40dp"
+            android:layout_marginTop="20dp"
+            android:background="@drawable/input_box_login"
+            android:hint="Nama Pelanggan"
+            android:padding="14dp"
+            android:textColor="@color/black"
+            android:textSize="16sp" />
+
+        <EditText
+            android:id="@+id/etAddress"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="40dp"
+            android:layout_marginTop="20dp"
+            android:background="@drawable/input_box_login"
+            android:hint="Alamat Pekerjaan"
+            android:padding="14dp"
+            android:textColor="@color/black"
+            android:textSize="16sp" />
+
+        <!-- UNITS TITLE -->
+        <TextView
+            android:id="@+id/tvUnitsLabel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Units"
+            android:textSize="18sp"
+            android:textColor="@color/black"
+            android:fontFamily="@font/inter_bold"
+            android:layout_marginTop="25dp"
+            android:layout_marginStart="40dp"/>
+
+        <!-- RECYCLER FOR UNITS -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/recyclerUnits"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:nestedScrollingEnabled="false"
+            android:layout_marginHorizontal="40dp"
+            android:layout_marginTop="12dp"
+            android:overScrollMode="never" />
+
+        <!-- ADD UNIT BUTTON -->
+        <FrameLayout
+            android:id="@+id/btnAddUnit"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:contentDescription="@string/app_name"
-            android:background="@drawable/refro_logo2" />
+            android:layout_marginTop="15dp"
+            android:layout_marginHorizontal="120dp"
+            android:background="@drawable/login_button"
+            android:paddingVertical="10dp"
+            android:paddingHorizontal="30dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Tambah Unit"
+                android:layout_gravity="center"
+                android:layout_marginBottom="4dp"
+                android:textColor="@color/black"
+                android:textSize="16sp"
+                android:fontFamily="@font/inter_bold" />
+        </FrameLayout>
+
+        <!-- SAVE BUTTON -->
+        <FrameLayout
+            android:id="@+id/btnSave"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:layout_gravity="center_horizontal"
+            android:background="@drawable/edit_button"
+            android:paddingHorizontal="50dp"
+            android:paddingVertical="14dp">
+        </FrameLayout>
     </LinearLayout>
 
-    <!-- ===== PAGE TITLE ===== -->
-    <TextView
-        android:id="@+id/addScheduleTitle"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Tambah Jadwal"
-        android:textSize="25sp"
-        android:textColor="@color/black"
-        android:fontFamily="@font/inter_bold"
-        android:layout_marginTop="50dp"
-        android:gravity="center" />
-
-    <!-- ===== FORM FIELDS (Date removed) ===== -->
-    <EditText
-        android:id="@+id/etTime"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginHorizontal="40dp"
-        android:layout_marginTop="30dp"
-        android:hint="Waktu"
-        android:inputType="none"
-        android:focusable="false"
-        android:clickable="true"
-        android:cursorVisible="false"
-        android:background="@drawable/input_box_login"
-        android:padding="12dp"
-        android:textColor="@color/black"
-        android:textSize="16sp"
-        android:fontFamily="@font/inter_bold" />
-
-
-    <!-- ===== TECHNICIAN (Dialog Trigger) ===== -->
-    <EditText
-        android:id="@+id/etTechnician"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginHorizontal="40dp"
-        android:layout_marginTop="20dp"
-        android:hint="Nama Teknisi"
-        android:background="@drawable/input_box_login"
-        android:padding="12dp"
-        android:textColor="@color/black"
-        android:textSize="16sp"
-        android:fontFamily="@font/inter_bold"
-        android:focusable="false"
-        android:clickable="true"
-        android:cursorVisible="false"
-        tools:ignore="TouchTargetSizeCheck" />
-
-    <EditText
-        android:id="@+id/etCustomer"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginHorizontal="40dp"
-        android:layout_marginTop="20dp"
-        android:hint="Nama Pelanggan"
-        android:background="@drawable/input_box_login"
-        android:padding="12dp"
-        android:textColor="@color/black"
-        android:textSize="16sp"
-        android:fontFamily="@font/inter_bold" />
-
-    <EditText
-        android:id="@+id/etAddress"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginHorizontal="40dp"
-        android:layout_marginTop="20dp"
-        android:hint="Alamat Pekerjaan"
-        android:background="@drawable/input_box_login"
-        android:padding="12dp"
-        android:textColor="@color/black"
-        android:textSize="16sp"
-        android:fontFamily="@font/inter_bold" />
-
-    <!-- ===== SAVE BUTTON ===== -->
-    <FrameLayout
-        android:id="@+id/btnSave"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="40dp"
-        android:layout_marginBottom="40dp"
-        android:paddingHorizontal="40dp"
-        android:paddingVertical="12dp"
-        android:background="@drawable/edit_button">
-    </FrameLayout>
-    <FrameLayout
-        android:id="@+id/btnBack"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="left"
-        android:layout_marginLeft="20dp"
-        android:layout_marginTop="30dp"
-        android:background="@drawable/back_button"/>
-
-</LinearLayout>
+</ScrollView>

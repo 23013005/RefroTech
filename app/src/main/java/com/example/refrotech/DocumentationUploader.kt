@@ -2,91 +2,60 @@ package com.example.refrotech
 
 import android.content.Context
 import android.net.Uri
-import android.widget.Toast
-import com.google.firebase.firestore.FieldValue
-import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
+import com.google.firebase.firestore.FirebaseFirestore
+import java.util.*
 
 object DocumentationUploader {
 
     /**
-     * Uploads up to 3 images to Firebase Storage and attaches their URLs
-     * to Firestore in requests/{requestId}.documentation (array)
+     * Uploads multiple images to Firebase Storage and appends URLs to request's `documentation` array.
+     * Calls callback(success:Boolean, message:String).
      */
-    fun uploadImagesForRequest(
-        ctx: Context,
-        requestId: String,
-        uris: List<Uri>,
-        contentResolverProvider: () -> android.content.ContentResolver,
-        callback: (Boolean, String) -> Unit
-    ) {
+    fun uploadImagesAndAttach(context: Context, requestId: String, uris: List<Uri>, callback: (Boolean, String) -> Unit) {
         if (uris.isEmpty()) {
-            callback(false, "Tidak ada gambar dipilih.")
+            callback(false, "No images")
             return
         }
 
-        val storage = FirebaseStorage.getInstance().reference
-            .child("documentation")
-            .child(requestId)
-
+        val storage = FirebaseStorage.getInstance()
         val db = FirebaseFirestore.getInstance()
+
         val uploadedUrls = mutableListOf<String>()
-        var counter = 0
+        var completed = 0
+        var failed = false
 
-        for (uri in uris) {
-            val fileName = System.currentTimeMillis().toString() + ".jpg"
-            val fileRef = storage.child(fileName)
-
-            val uploadTask = fileRef.putFile(uri)
-
-            uploadTask
-                .addOnSuccessListener {
-                    fileRef.downloadUrl
-                        .addOnSuccessListener { downloadUri ->
-                            uploadedUrls.add(downloadUri.toString())
-
-                            counter++
-                            if (counter == uris.size) {
-                                // All uploads finished
-                                attachUrlsToFirestore(
-                                    db = db,
-                                    requestId = requestId,
-                                    urls = uploadedUrls,
-                                    callback = callback
-                                )
+        for (u in uris) {
+            val key = UUID.randomUUID().toString()
+            val ref = storage.reference.child("documentation/$requestId/$key.jpg")
+            val uploadTask = ref.putFile(u)
+            uploadTask.addOnSuccessListener {
+                ref.downloadUrl.addOnSuccessListener { downloadUri ->
+                    uploadedUrls.add(downloadUri.toString())
+                    completed += 1
+                    if (completed == uris.size && !failed) {
+                        // attach urls to request + update jobStatus
+                        val updates = hashMapOf<String, Any>(
+                            FirestoreFields.FIELD_DOCUMENTATION to com.google.firebase.firestore.FieldValue.arrayUnion(*uploadedUrls.toTypedArray()),
+                            FirestoreFields.FIELD_JOB_STATUS to "completed"
+                        )
+                        db.collection(FirestoreFields.REQUESTS).document(requestId)
+                            .update(updates as Map<String, Any>)
+                            .addOnSuccessListener {
+                                callback(true, "Dokumentasi berhasil diupload.")
                             }
-                        }
-                        .addOnFailureListener { e ->
-                            callback(false, "Gagal mendapatkan URL: ${e.message}")
-                        }
+                            .addOnFailureListener { e ->
+                                callback(false, "Gagal memperbarui dokumentasi: ${e.message}")
+                            }
+                    }
+                }.addOnFailureListener { e ->
+                    failed = true
+                    callback(false, "Gagal mendapatkan url: ${e.message}")
                 }
-                .addOnFailureListener { e ->
-                    callback(false, "Gagal upload gambar: ${e.message}")
-                }
+            }.addOnFailureListener { e ->
+                failed = true
+                callback(false, "Upload gagal: ${e.message}")
+            }
         }
-    }
-
-    private fun attachUrlsToFirestore(
-        db: FirebaseFirestore,
-        requestId: String,
-        urls: List<String>,
-        callback: (Boolean, String) -> Unit
-    ) {
-        db.collection("requests").document(requestId)
-            .update("documentation", FieldValue.arrayUnion(*urls.toTypedArray()))
-            .addOnSuccessListener {
-                // Also set job status to completed
-                db.collection("requests").document(requestId)
-                    .update("status", "completed")
-                    .addOnSuccessListener {
-                        callback(true, "Dokumentasi berhasil diupload.")
-                    }
-                    .addOnFailureListener { e ->
-                        callback(false, "Gagal memperbarui status: ${e.message}")
-                    }
-            }
-            .addOnFailureListener { e ->
-                callback(false, "Gagal menambahkan URL ke database: ${e.message}")
-            }
     }
 }

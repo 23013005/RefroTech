@@ -20,19 +20,22 @@ class ScheduleAdapter(
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
-        val v = LayoutInflater.from(ctx).inflate(R.layout.item_schedule, parent, false)
-        return VH(v)
+        val view = LayoutInflater.from(ctx)
+            .inflate(R.layout.item_schedule, parent, false)
+        return VH(view)
     }
 
     override fun getItemCount(): Int = items.size
 
     override fun onBindViewHolder(holder: VH, position: Int) {
         val it = items[position]
+
         holder.tvCustomer.text = it.customerName
         holder.tvTime.text = "${it.date} • ${it.time}"
         holder.tvAddress.text = it.address
-        holder.tvTechs.text = it.technicians
-        // You can add click listeners here to open details etc.
+
+        // FIX: convert list → string
+        holder.tvTechs.text = it.technicians.joinToString(", ")
     }
 
     fun updateData(newItems: List<Schedule>) {

@@ -2,7 +2,12 @@ package com.example.refrotech
 
 import android.content.Intent
 import android.os.Bundle
-import android.widget.*
+import android.text.method.HideReturnsTransformationMethod
+import android.text.method.PasswordTransformationMethod
+import android.widget.FrameLayout
+import android.widget.ImageView
+import android.widget.EditText
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.google.firebase.firestore.FirebaseFirestore
 
@@ -12,7 +17,6 @@ class EmployeeLogin : AppCompatActivity() {
     private lateinit var etPassword: EditText
     private lateinit var btnLogin: FrameLayout
     private lateinit var btnTogglePassword: ImageView
-    private lateinit var switchToCustomer: FrameLayout
 
     private val db = FirebaseFirestore.getInstance()
     private var isPasswordVisible = false
@@ -21,88 +25,73 @@ class EmployeeLogin : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_employee_login)
 
-        // BIND VIEWS
         etUsername = findViewById(R.id.etUsername)
         etPassword = findViewById(R.id.etPassword)
         btnLogin = findViewById(R.id.btnLogin)
         btnTogglePassword = findViewById(R.id.btnTogglePassword)
-        switchToCustomer = findViewById(R.id.cust_login_page_button)
 
-        // PASSWORD VISIBILITY TOGGLE
+        // Password eye toggle
         btnTogglePassword.setOnClickListener {
             isPasswordVisible = !isPasswordVisible
-
             if (isPasswordVisible) {
-                etPassword.transformationMethod =
-                    android.text.method.HideReturnsTransformationMethod.getInstance()
+                etPassword.transformationMethod = HideReturnsTransformationMethod.getInstance()
                 btnTogglePassword.setImageResource(R.drawable.ic_eye_open)
             } else {
-                etPassword.transformationMethod =
-                    android.text.method.PasswordTransformationMethod.getInstance()
+                etPassword.transformationMethod = PasswordTransformationMethod.getInstance()
                 btnTogglePassword.setImageResource(R.drawable.ic_eye_closed)
             }
-
-            etPassword.setSelection(etPassword.text.length)
+            // keep cursor at end
+            etPassword.setSelection(etPassword.text?.length ?: 0)
         }
 
-        // LOGIN BUTTON
         btnLogin.setOnClickListener {
             val username = etUsername.text.toString().trim()
             val password = etPassword.text.toString().trim()
 
             if (username.isEmpty() || password.isEmpty()) {
-                Toast.makeText(this, "Isi semua input!", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Please enter username and password", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
 
-            loginUser(username, password)
-        }
-
-        // SWITCH TO CUSTOMER LOGIN
-        switchToCustomer.setOnClickListener {
-            finish()
-        }
-    }
-
-    // ===================== LOGIN FUNCTION ==========================
-    private fun loginUser(username: String, password: String) {
-        db.collection("users")
-            .whereEqualTo("username", username)
-            .whereEqualTo("password", password)
-            .get()
-            .addOnSuccessListener { result ->
-                if (result.isEmpty) {
-                    Toast.makeText(this, "Username atau password salah!", Toast.LENGTH_SHORT).show()
-                    return@addOnSuccessListener
-                }
-
-                val user = result.documents[0]
-                val role = user.getString("role") ?: ""
-                val name = user.getString("name") ?: "Unknown"
-                val userId = user.id   // FIRESTORE DOCUMENT ID
-
-                // SAVE USER DATA LOCALLY FOR GLOBAL ACCESS
-                val prefs = getSharedPreferences("user", MODE_PRIVATE)
-                prefs.edit()
-                    .putString("uid", userId)
-                    .putString("role", role)
-                    .putString("name", name)
-                    .apply()
-
-                when (role) {
-                    "leader" -> {
-                        startActivity(Intent(this, leader_dashboard::class.java))
-                        finish()
+            // Query users collection for matching credentials
+            db.collection(FirestoreFields.USERS)
+                .whereEqualTo("username", username)
+                .whereEqualTo("password", password)
+                .limit(1)
+                .get()
+                .addOnSuccessListener { snap ->
+                    if (snap.isEmpty) {
+                        Toast.makeText(this, "Invalid credentials", Toast.LENGTH_SHORT).show()
+                        return@addOnSuccessListener
                     }
-                    "technician" -> {
-                        startActivity(Intent(this, TechnicianDashboard::class.java))
-                        finish()
+                    val doc = snap.documents[0]
+                    val role = doc.getString("role") ?: "customer"
+                    val uid = doc.id
+
+                    when (role) {
+                        "leader" -> {
+                            startActivity(Intent(this, LeaderDashboard::class.java).apply {
+                                putExtra("userId", uid)
+                            })
+                            finish()
+                        }
+                        "technician" -> {
+                            startActivity(Intent(this, TechnicianDashboard::class.java).apply {
+                                putExtra("userId", uid)
+                            })
+                            finish()
+                        }
+                        else -> {
+                            startActivity(Intent(this, DashboardCustomer::class.java).apply {
+                                putExtra("userId", uid)
+                            })
+                            finish()
+                        }
                     }
-                    else -> Toast.makeText(this, "Role tidak valid!", Toast.LENGTH_SHORT).show()
                 }
-            }
-            .addOnFailureListener {
-                Toast.makeText(this, "Error: ${it.message}", Toast.LENGTH_SHORT).show()
-            }
+                .addOnFailureListener { e ->
+                    Toast.makeText(this, "Login failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+        }
     }
 }
