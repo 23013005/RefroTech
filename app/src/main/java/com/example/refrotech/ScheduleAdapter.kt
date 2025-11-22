@@ -1,9 +1,11 @@
 package com.example.refrotech
 
 import android.content.Context
+import android.content.Intent
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 
@@ -17,25 +19,41 @@ class ScheduleAdapter(
         val tvTime: TextView = itemView.findViewById(R.id.tvScheduleTime)
         val tvTechs: TextView = itemView.findViewById(R.id.tvScheduleTechnicians)
         val tvAddress: TextView = itemView.findViewById(R.id.tvScheduleAddress)
+        val btnEdit: ImageView = itemView.findViewById(R.id.btnEditSchedule)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
-        val view = LayoutInflater.from(ctx)
+        val v = LayoutInflater.from(parent.context)
             .inflate(R.layout.item_schedule, parent, false)
-        return VH(view)
+        return VH(v)
     }
 
     override fun getItemCount(): Int = items.size
 
     override fun onBindViewHolder(holder: VH, position: Int) {
-        val it = items[position]
 
-        holder.tvCustomer.text = it.customerName
-        holder.tvTime.text = "${it.date} • ${it.time}"
-        holder.tvAddress.text = it.address
+        val item = items[position]   // THIS is the schedule item
 
-        // FIX: convert list → string
-        holder.tvTechs.text = it.technicians.joinToString(", ")
+        holder.tvCustomer.text = item.customerName
+        holder.tvTime.text = "${item.date} • ${item.time}"
+        holder.tvAddress.text = item.address
+        holder.tvTechs.text = item.technicians.joinToString(", ")
+
+        // EDIT BUTTON
+        holder.btnEdit.setOnClickListener {
+            val intent = Intent(ctx, EditSchedulePage::class.java)
+            intent.putExtra("scheduleId", item.scheduleId)
+            intent.putExtra("date", item.date)
+            ctx.startActivity(intent)
+        }
+
+        // CLICK ENTIRE CARD
+        holder.itemView.setOnClickListener {
+            val intent = Intent(ctx, EditSchedulePage::class.java)
+            intent.putExtra("scheduleId", item.scheduleId)
+            intent.putExtra("date", item.date)
+            ctx.startActivity(intent)
+        }
     }
 
     fun updateData(newItems: List<Schedule>) {

@@ -211,30 +211,19 @@ class TechnicianManagement : AppCompatActivity() {
     /**
      * Show dialog to set unavailability for a technician.
      *
-     * New behaviour (Option A):
-     * - We store ONLY unavailablePeriods: a single-element list with a map { "start": yyyy-MM-dd, "end": yyyy-MM-dd? }
-     * - If "until further notice" is selected, end will be saved as null in the map.
-     * - This replaces the old unavailableFrom/unavailableTo fields.
+     * New behaviour:
+     * - We store ONLY unavailableFrom (String yyyy-MM-dd) and unavailableTo (String yyyy-MM-dd) OR null.
+     * - If "until further notice" is chosen, unavailableTo will be saved as null (permanent).
+     * - To make a technician available again, leader will clear the fields (both set to null).
      */
     private fun showSetUnavailabilityDialog(techId: String, techName: String) {
 
         db.collection(FirestoreFields.USERS).document(techId).get()
             .addOnSuccessListener { doc ->
 
-                // Read existing unavailablePeriods first (if any). We'll pre-fill with first element.
-                var currentStart: String? = null
-                var currentEnd: String? = null
-                val periods = doc.get("unavailablePeriods") as? List<*>
-                if (!periods.isNullOrEmpty()) {
-                    val first = periods[0] as? Map<*, *>
-                    currentStart = first?.get("start")?.toString()
-                    // treat explicit null as null; Firestore might render missing "end" as null or missing
-                    currentEnd = if (first?.containsKey("end") == true) {
-                        first["end"]?.toString()
-                    } else {
-                        null
-                    }
-                }
+                // Read existing unavailableFrom / unavailableTo (if any)
+                var currentStart: String? = doc.getString("unavailableFrom")
+                var currentEnd: String? = doc.getString("unavailableTo") // may be null
 
                 val view = LayoutInflater.from(this).inflate(R.layout.dialog_set_unavailability, null)
                 val btnStart = view.findViewById<Button>(R.id.btnStartDate)
@@ -246,12 +235,12 @@ class TechnicianManagement : AppCompatActivity() {
                 var endStr = currentEnd
 
                 // Pre-fill UI
-                if (startStr != null) {
+                if (!startStr.isNullOrBlank()) {
                     if (endStr == null) tvChosen.text = "Start: $startStr\nEnd: (until further notice)"
                     else tvChosen.text = "Start: $startStr\nEnd: $endStr"
                 } else tvChosen.text = "Start: -\nEnd: -"
 
-                if (startStr != null && endStr == null) cbUntilFurther.isChecked = true
+                if (!startStr.isNullOrBlank() && endStr == null) cbUntilFurther.isChecked = true
 
                 btnStart.setOnClickListener {
                     val cal = Calendar.getInstance()
@@ -259,7 +248,7 @@ class TechnicianManagement : AppCompatActivity() {
                         val c = Calendar.getInstance()
                         c.set(y, m, d)
                         startStr = dateFormat.format(c.time)
-                        tvChosen.text = "Start: $startStr\nEnd: ${endStr ?: "-"}"
+                        tvChosen.text = "Start: ${startStr ?: "-"}\nEnd: ${endStr ?: "-"}"
                     }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)).show()
                 }
 
@@ -269,7 +258,7 @@ class TechnicianManagement : AppCompatActivity() {
                         val c = Calendar.getInstance()
                         c.set(y, m, d)
                         endStr = dateFormat.format(c.time)
-                        tvChosen.text = "Start: ${startStr ?: "-"}\nEnd: $endStr"
+                        tvChosen.text = "Start: ${startStr ?: "-"}\nEnd: ${endStr ?: "-"}"
                         cbUntilFurther.isChecked = false
                     }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)).show()
                 }
@@ -288,24 +277,24 @@ class TechnicianManagement : AppCompatActivity() {
                     .setView(view)
                     .setPositiveButton("Save") { dialog, _ ->
 
-                        val s = startStr ?: run {
-                            Toast.makeText(this, "Please choose start date", Toast.LENGTH_SHORT).show()
+                        // If no start chosen -> prompt to choose or clear availability
+                        val s = startStr
+                        if (s.isNullOrBlank()) {
+                            Toast.makeText(this, "Please choose a start date or use 'Clear' to make available.", Toast.LENGTH_SHORT).show()
                             return@setPositiveButton
                         }
 
                         // endStr may be null if until further
                         val e: String? = if (cbUntilFurther.isChecked) null else endStr
 
-                        // Build single-element periods list (replace existing)
-                        val entry = if (e == null) {
-                            mapOf<String, Any?>("start" to s, "end" to null)
-                        } else {
-                            mapOf<String, Any?>("start" to s, "end" to e)
-                        }
+                        // Build updates using unavailableFrom/unavailableTo only
+                        val updates = hashMapOf<String, Any?>(
+                            "unavailableFrom" to s,
+                            "unavailableTo" to e
+                        )
 
-                        // Replace the unavailablePeriods field with a single-element list
                         db.collection(FirestoreFields.USERS).document(techId)
-                            .update(mapOf("unavailablePeriods" to listOf(entry)))
+                            .update(updates)
                             .addOnSuccessListener {
                                 Toast.makeText(this, "Unavailability saved", Toast.LENGTH_SHORT).show()
                                 loadTechnicians()
@@ -314,6 +303,23 @@ class TechnicianManagement : AppCompatActivity() {
                                 Toast.makeText(this, "Failed to save: ${eEx.message}", Toast.LENGTH_SHORT).show()
                             }
 
+                        dialog.dismiss()
+                    }
+                    .setNeutralButton("Clear (Make Available)") { dialog, _ ->
+                        // Clear the fields -> make technician available
+                        val updates = mapOf<String, Any?>(
+                            "unavailableFrom" to null,
+                            "unavailableTo" to null
+                        )
+                        db.collection(FirestoreFields.USERS).document(techId)
+                            .update(updates)
+                            .addOnSuccessListener {
+                                Toast.makeText(this, "Teknisi sekarang tersedia.", Toast.LENGTH_SHORT).show()
+                                loadTechnicians()
+                            }
+                            .addOnFailureListener { ex ->
+                                Toast.makeText(this, "Gagal menyimpan: ${ex.message}", Toast.LENGTH_SHORT).show()
+                            }
                         dialog.dismiss()
                     }
                     .setNegativeButton("Cancel", null)

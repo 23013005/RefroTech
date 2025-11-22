@@ -9,6 +9,7 @@ import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import java.text.SimpleDateFormat
@@ -92,7 +93,10 @@ class DashboardCustomer : AppCompatActivity() {
         }
 
         navHistory.setOnClickListener {
+            // Pass the userId so CustomerHistory can query only this customer's requests
+            val userId = auth.currentUser?.uid
             val intent = Intent(this, CustomerHistory::class.java)
+            intent.putExtra("userId", userId)
             startActivity(intent)
         }
     }
@@ -220,6 +224,7 @@ class DashboardCustomer : AppCompatActivity() {
             )
         }
 
+        val now = Timestamp.now()
         val requestData = hashMapOf(
             "customerId" to userId,
             "name" to name,
@@ -230,7 +235,9 @@ class DashboardCustomer : AppCompatActivity() {
             "phone" to phone,
             "status" to "pending",
             "units" to unitMaps,
-            "timestamp" to com.google.firebase.Timestamp.now()
+            // Use createdAt & createdAtMillis so other pages/readers can sort and read consistently
+            "createdAt" to now,
+            "createdAtMillis" to now.toDate().time
         )
 
         db.collection("requests")

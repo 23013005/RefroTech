@@ -17,6 +17,7 @@ class EmployeeLogin : AppCompatActivity() {
     private lateinit var etPassword: EditText
     private lateinit var btnLogin: FrameLayout
     private lateinit var btnTogglePassword: ImageView
+    private lateinit var btnGoCustomerLogin: FrameLayout   // RESTORED
 
     private val db = FirebaseFirestore.getInstance()
     private var isPasswordVisible = false
@@ -30,6 +31,9 @@ class EmployeeLogin : AppCompatActivity() {
         btnLogin = findViewById(R.id.btnLogin)
         btnTogglePassword = findViewById(R.id.btnTogglePassword)
 
+        // RESTORED BUTTON
+        btnGoCustomerLogin = findViewById(R.id.cust_login_page_button)
+
         // Password eye toggle
         btnTogglePassword.setOnClickListener {
             isPasswordVisible = !isPasswordVisible
@@ -40,10 +44,10 @@ class EmployeeLogin : AppCompatActivity() {
                 etPassword.transformationMethod = PasswordTransformationMethod.getInstance()
                 btnTogglePassword.setImageResource(R.drawable.ic_eye_closed)
             }
-            // keep cursor at end
             etPassword.setSelection(etPassword.text?.length ?: 0)
         }
 
+        // Login employee
         btnLogin.setOnClickListener {
             val username = etUsername.text.toString().trim()
             val password = etPassword.text.toString().trim()
@@ -53,7 +57,6 @@ class EmployeeLogin : AppCompatActivity() {
                 return@setOnClickListener
             }
 
-            // Query users collection for matching credentials
             db.collection(FirestoreFields.USERS)
                 .whereEqualTo("username", username)
                 .whereEqualTo("password", password)
@@ -92,6 +95,12 @@ class EmployeeLogin : AppCompatActivity() {
                 .addOnFailureListener { e ->
                     Toast.makeText(this, "Login failed: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
+        }
+
+        // RESTORED LISTENER (go back to customer login page)
+        btnGoCustomerLogin.setOnClickListener {
+            startActivity(Intent(this, MainActivity::class.java))
+            finish()
         }
     }
 }

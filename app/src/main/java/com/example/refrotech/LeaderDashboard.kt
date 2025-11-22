@@ -57,7 +57,9 @@ class LeaderDashboard : AppCompatActivity() {
 
         // ===================== ADD SCHEDULE BUTTON =====================
         btnAddSchedule.setOnClickListener {
+            // PASS selected date into AddSchedulePage so AddSchedulePage doesn't need an etDate
             val intent = Intent(this, AddSchedulePage::class.java)
+            intent.putExtra("date", selectedDate)
             startActivity(intent)
         }
 
@@ -106,6 +108,7 @@ class LeaderDashboard : AppCompatActivity() {
     // ===================== DATE FORMATTER =====================
     private fun formatDate(day: CalendarDay): String {
         val y = day.year
+        // NOTE: materialcalendarview's month/day are 1-based already
         val m = String.format("%02d", day.month)
         val d = String.format("%02d", day.day)
         return "$y-$m-$d"

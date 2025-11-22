@@ -38,7 +38,7 @@
             android:textColor="@android:color/black" />
     </LinearLayout>
 
-    <!-- Address / Date / Time -->
+    <!-- Address -->
     <TextView
         android:id="@+id/tvHistAddress"
         android:layout_width="match_parent"
@@ -47,6 +47,7 @@
         android:layout_marginTop="6dp"
         android:textColor="@android:color/black" />
 
+    <!-- Date + Time -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -67,12 +68,12 @@
             android:text="10:00" />
     </LinearLayout>
 
-    <!-- Unit summary (simple) -->
+    <!-- Units summary -->
     <TextView
         android:id="@+id/tvHistUnits"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="1 unit • Service"
+        android:text="1 Unit"
         android:layout_marginTop="8dp" />
 
     <!-- Action buttons -->
@@ -83,7 +84,6 @@
         android:layout_marginTop="10dp"
         android:gravity="center">
 
-        <!-- Edit request -->
         <FrameLayout
             android:id="@+id/btnEditRequest"
             android:layout_width="0dp"
@@ -94,7 +94,6 @@
             android:layout_marginEnd="8dp">
 
             <TextView
-                android:id="@+id/tvBtnEdit"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Edit"
@@ -103,7 +102,6 @@
                 android:textStyle="bold"/>
         </FrameLayout>
 
-        <!-- Change schedule -->
         <FrameLayout
             android:id="@+id/btnChangeSchedule"
             android:layout_width="0dp"
@@ -114,7 +112,6 @@
             android:layout_marginEnd="8dp">
 
             <TextView
-                android:id="@+id/tvBtnChange"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Reschedule"
@@ -123,7 +120,6 @@
                 android:textStyle="bold"/>
         </FrameLayout>
 
-        <!-- Cancel request -->
         <FrameLayout
             android:id="@+id/btnCancelRequest"
             android:layout_width="0dp"
@@ -133,7 +129,6 @@
             android:padding="8dp">
 
             <TextView
-                android:id="@+id/tvBtnCancel"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Cancel"
@@ -141,7 +136,6 @@
                 android:layout_gravity="center"
                 android:textStyle="bold"/>
         </FrameLayout>
-
     </LinearLayout>
 
 </LinearLayout>

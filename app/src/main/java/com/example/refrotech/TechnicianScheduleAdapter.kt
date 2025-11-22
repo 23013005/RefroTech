@@ -42,7 +42,9 @@ class TechnicianScheduleAdapter(
             itemView.setOnClickListener { onClick(r.id) }
 
             // Optionally change appearance for completed jobs
-            if ((r.jobStatus ?: r.status).equals("completed", ignoreCase = true)) {
+            // Use jobStatus if present, otherwise fallback to status (older documents)
+            val jobStatus = r.jobStatus ?: r.status ?: "scheduled"
+            if (jobStatus.equals("completed", ignoreCase = true)) {
                 itemView.alpha = 0.7f
             } else {
                 itemView.alpha = 1f
