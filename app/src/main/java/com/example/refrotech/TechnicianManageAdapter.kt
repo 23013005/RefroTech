@@ -7,35 +7,67 @@ import android.widget.FrameLayout
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 
+/**
+ * TechnicianManageAdapter
+ *
+ * items: MutableList<Map<String, Any>> where each item at least contains:
+ *   - "id" -> String
+ *   - "name" -> String
+ *   - "username" -> String
+ *
+ * Callbacks:
+ *  - onEdit(id)
+ *  - onDelete(id)
+ *  - onSetAvailability(id, name)  // invoked on long-press of row
+ */
 class TechnicianManageAdapter(
-    private val technicians: MutableList<Technician>,
-    private val onEditClick: (Technician) -> Unit,
-    private val onDeleteClick: (Technician) -> Unit
-) : RecyclerView.Adapter<TechnicianManageAdapter.ViewHolder>() {
+    private var items: MutableList<Map<String, Any>>,
+    private val onEdit: ((String) -> Unit)? = null,
+    private val onDelete: ((String) -> Unit)? = null,
+    private val onSetAvailability: ((String, String) -> Unit)? = null
+) : RecyclerView.Adapter<TechnicianManageAdapter.VH>() {
 
-    inner class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
-        val nameText: TextView = view.findViewById(R.id.tvTechnicianName)
-        val usernameText: TextView = view.findViewById(R.id.tvTechnicianUsername)
-        val passwordText: TextView = view.findViewById(R.id.tvTechnicianPassword)
-        val btnEdit: FrameLayout = view.findViewById(R.id.btnEditTech)
-        val btnDelete: FrameLayout = view.findViewById(R.id.btnDeleteTech)
+    inner class VH(view: View) : RecyclerView.ViewHolder(view) {
+        val tvName: TextView = view.findViewById(R.id.tvTechnicianName)
+        val tvUsername: TextView = view.findViewById(R.id.tvTechnicianUsername)
+        val btnEdit: FrameLayout? = view.findViewById(R.id.btnEditTech)
+        val btnDelete: FrameLayout? = view.findViewById(R.id.btnDeleteTech)
     }
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
-        val view = LayoutInflater.from(parent.context)
-            .inflate(R.layout.item_technician_manage, parent, false)
-        return ViewHolder(view)
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
+        val v = LayoutInflater.from(parent.context).inflate(R.layout.item_technician_manage, parent, false)
+        return VH(v)
     }
 
-    override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        val technician = technicians[position]
-        holder.nameText.text = technician.name
-        holder.usernameText.text = technician.username
-        holder.passwordText.text = technician.password // visible password for leader
+    override fun onBindViewHolder(holder: VH, position: Int) {
+        val item = items[position]
+        val id = item["id"] as? String ?: ""
+        val name = item["name"] as? String ?: ""
+        val username = item["username"] as? String ?: ""
 
-        holder.btnEdit.setOnClickListener { onEditClick(technician) }
-        holder.btnDelete.setOnClickListener { onDeleteClick(technician) }
+        holder.tvName.text = name
+        holder.tvUsername.text = username
+
+        holder.btnEdit?.setOnClickListener {
+            onEdit?.invoke(id)
+        }
+
+        holder.btnDelete?.setOnClickListener {
+            onDelete?.invoke(id)
+        }
+
+        // Long-press the row to open Set Availability dialog.
+        holder.itemView.setOnLongClickListener {
+            onSetAvailability?.invoke(id, name)
+            true
+        }
     }
 
-    override fun getItemCount(): Int = technicians.size
+    override fun getItemCount(): Int = items.size
+
+    fun updateData(newItems: List<Map<String, Any>>) {
+        items.clear()
+        items.addAll(newItems)
+        notifyDataSetChanged()
+    }
 }

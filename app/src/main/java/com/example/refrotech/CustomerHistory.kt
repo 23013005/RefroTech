@@ -1,65 +1,105 @@
 package com.example.refrotech
 
+import android.content.Intent
 import android.os.Bundle
 import android.widget.LinearLayout
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
-import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
 
 class CustomerHistory : AppCompatActivity() {
 
-    private lateinit var recyclerHistory: RecyclerView
+    private val db = FirebaseFirestore.getInstance()
+
+    private lateinit var recyclerHistory: androidx.recyclerview.widget.RecyclerView
+    private lateinit var adapter: HistoryAdapter
+    private lateinit var userId: String
+
+    // NAVIGATION
     private lateinit var navHome: LinearLayout
     private lateinit var navHistory: LinearLayout
 
-    private lateinit var adapter: HistoryAdapter
-    private val requestList = mutableListOf<RequestData>()
-
-    private val db = FirebaseFirestore.getInstance()
-    private val auth = FirebaseAuth.getInstance()
+    private var listener: ListenerRegistration? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_customer_history)
 
+        userId = intent.getStringExtra("userId") ?: ""
+
         recyclerHistory = findViewById(R.id.recyclerHistory)
+        recyclerHistory.layoutManager = LinearLayoutManager(this)
+        adapter = HistoryAdapter(mutableListOf())
+        recyclerHistory.adapter = adapter
+
+        // FIX: navigation views must be LinearLayout (NOT FrameLayout)
         navHome = findViewById(R.id.navHome)
         navHistory = findViewById(R.id.navHistory)
 
-        recyclerHistory.layoutManager = LinearLayoutManager(this)
-
-        // >>> FIXED HERE <<<
-        adapter = HistoryAdapter(
-            context = this,           // The Activity (valid Context)
-            requests = requestList    // The list of RequestData
-        )
-        recyclerHistory.adapter = adapter
-
-        // Load data
-        loadRequests()
-
-        navHome.setOnClickListener { finish() }
-        navHistory.setOnClickListener { } // currently on history
+        setupNavigation()
+        startRealtimeListener()
     }
 
-    private fun loadRequests() {
-        val userId = auth.currentUser?.uid ?: return
+    private fun setupNavigation() {
+        navHome.setOnClickListener {
+            val intent = Intent(this, DashboardCustomer::class.java)
+            intent.putExtra("userId", userId)
+            startActivity(intent)
+            finish()
+        }
 
-        db.collection("requests")
-            .whereEqualTo("customerId", userId)
-            .get()
-            .addOnSuccessListener { result ->
-                requestList.clear()
-                for (doc in result) {
-                    val req = RequestData.fromFirestore(doc)
-                    requestList.add(req)
+        navHistory.setOnClickListener {
+            // current page, do nothing or refresh
+        }
+    }
+
+    private fun startRealtimeListener() {
+        listener?.remove()
+
+        listener = db.collection(FirestoreFields.REQUESTS)
+            .whereEqualTo("customerId", userId)   // FIXED — this is how requests are saved
+            .addSnapshotListener { snaps, e ->
+                if (e != null) {
+                    Toast.makeText(this, "Failed to load history: ${e.message}", Toast.LENGTH_SHORT).show()
+                    return@addSnapshotListener
                 }
-                adapter.notifyDataSetChanged()
+
+                if (snaps == null) {
+                    adapter.updateData(emptyList())
+                    return@addSnapshotListener
+                }
+
+                // auto-delete cancelled
+                for (doc in snaps.documents) {
+                    val status = doc.getString("status") ?: ""
+                    if (status.equals("cancelled", ignoreCase = true)) {
+                        db.collection(FirestoreFields.REQUESTS)
+                            .document(doc.id)
+                            .delete()
+                    }
+                }
+
+                val list = snaps.documents.mapNotNull { doc ->
+                    try { RequestData.fromFirestore(doc) } catch (_: Exception) { null }
+                }.sortedByDescending { it.createdAtMillis ?: 0L }
+
+                adapter.updateData(list)
             }
-            .addOnFailureListener {
-                // handle error
-            }
+    }
+
+
+
+    override fun onStop() {
+        super.onStop()
+        listener?.remove()
+        listener = null
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        listener?.remove()
+        listener = null
     }
 }

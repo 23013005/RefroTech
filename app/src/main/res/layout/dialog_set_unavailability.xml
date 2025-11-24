@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/layoutSetUnavailability"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <TextView
+        android:id="@+id/tvUnavailHint"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Pilih rentang tanggal ketika teknisi tidak tersedia."
+        android:textAppearance="?android:attr/textAppearanceSmall"
+        android:paddingBottom="8dp" />
+
+    <Button
+        android:id="@+id/btnStartDate"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Pilih Tanggal Mulai" />
+
+    <Button
+        android:id="@+id/btnEndDate"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Pilih Tanggal Selesai"
+        android:layout_marginTop="8dp" />
+
+    <CheckBox
+        android:id="@+id/cbUntilFurther"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Indefinitely unavailable"
+        android:layout_marginTop="8dp" />
+
+    <TextView
+        android:id="@+id/tvChosenRange"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Dari: -\nHingga: -"
+        android:layout_marginTop="8dp" />
+
+</LinearLayout>
