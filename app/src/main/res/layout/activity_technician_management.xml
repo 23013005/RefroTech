@@ -35,7 +35,7 @@
         android:textColor="@color/black"
         android:fontFamily="@font/inter_bold"
         android:gravity="center"
-        android:paddingTop="6dp"
+        android:paddingTop="15dp"
         android:paddingBottom="6dp" />
 
     <!-- SCROLLABLE CONTENT -->
@@ -61,17 +61,18 @@
                 android:layout_height="48dp"
                 android:layout_marginTop="8dp"
                 android:layout_marginBottom="12dp"
-                android:background="@drawable/login_button"
+                android:background="@drawable/pemimpin_button_teknisi"
                 android:paddingVertical="6dp">
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Tambah Teknisi"
+
                     android:layout_gravity="center"
                     android:textSize="16sp"
                     android:fontFamily="@font/inter_bold"
-                    android:textColor="@color/black" />
+                    android:textColor="@color/Frost_White" />
             </FrameLayout>
 
             <!-- Recycler for technicians -->
