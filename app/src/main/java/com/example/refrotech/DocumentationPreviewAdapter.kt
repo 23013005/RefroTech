@@ -1,64 +1,95 @@
 package com.example.refrotech
 
+import android.graphics.BitmapFactory
 import android.net.Uri
+import android.util.Base64
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import androidx.recyclerview.widget.RecyclerView
-import com.bumptech.glide.Glide
 
-/**
- * Adapter to show:
- * - Existing uploaded documentation (URLs)
- * - Newly selected photos (Uri)
- */
 class DocumentationPreviewAdapter(
-    private val newPhotos: MutableList<Uri>,
-    private val existingPhotos: MutableList<String> = mutableListOf()
-) : RecyclerView.Adapter<DocumentationPreviewAdapter.PhotoViewHolder>() {
+    private var items: MutableList<DocItem>,
+    private val onDelete: ((DocItem) -> Unit)? = null
+) : RecyclerView.Adapter<DocumentationPreviewAdapter.VH>() {
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): PhotoViewHolder {
+    inner class VH(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        val img: ImageView = itemView.findViewById(R.id.imgDocPreview)
+        val btnDelete: ImageView = itemView.findViewById(R.id.btnDeleteDoc)
+    }
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
         val v = LayoutInflater.from(parent.context)
-            .inflate(R.layout.item_documentation_photo, parent, false)
-        return PhotoViewHolder(v)
+            .inflate(R.layout.item_doc_preview, parent, false)
+        return VH(v)
     }
 
-    override fun getItemCount(): Int {
-        return existingPhotos.size + newPhotos.size
-    }
+    override fun getItemCount(): Int = items.size
 
-    override fun onBindViewHolder(holder: PhotoViewHolder, position: Int) {
+    override fun onBindViewHolder(holder: VH, position: Int) {
+        val it = items[position]
 
-        if (position < existingPhotos.size) {
-            // Load existing Firestore image
-            Glide.with(holder.itemView)
-                .load(existingPhotos[position])
-                .into(holder.img)
-        } else {
-            // Load newly selected image (Uri)
-            val uriIndex = position - existingPhotos.size
-            Glide.with(holder.itemView)
-                .load(newPhotos[uriIndex])
-                .into(holder.img)
+        try {
+            when {
+                // PREVIEW: Not uploaded yet, show from local Uri
+                it.localUri != null -> {
+                    try {
+                        val stream = holder.itemView.context
+                            .contentResolver
+                            .openInputStream(it.localUri)
+                        val bmp = BitmapFactory.decodeStream(stream)
+                        if (bmp != null) holder.img.setImageBitmap(bmp)
+                        else holder.img.setImageResource(android.R.color.darker_gray)
+                    } catch (e: Exception) {
+                        Log.e("DocAdapter", "Failed to load localUri preview: ${e.message}")
+                        holder.img.setImageResource(android.R.color.darker_gray)
+                    }
+                }
+
+                // STORED BASE64: show uploaded image
+                !it.base64.isNullOrBlank() -> {
+                    try {
+                        val trimmed = it.base64.replace("\n", "")
+                        val bytes = Base64.decode(trimmed, Base64.DEFAULT)
+                        val bmp = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                        if (bmp != null) holder.img.setImageBitmap(bmp)
+                        else holder.img.setImageResource(android.R.color.darker_gray)
+                    } catch (e: Exception) {
+                        Log.e("DocAdapter", "Failed to load base64: ${e.message}")
+                        holder.img.setImageResource(android.R.color.darker_gray)
+                    }
+                }
+
+                else -> holder.img.setImageResource(android.R.color.darker_gray)
+            }
+        } catch (e: Exception) {
+            Log.e("DocAdapter", "onBind error: ${e.message}")
+            holder.img.setImageResource(android.R.color.darker_gray)
+        }
+
+        holder.btnDelete.setOnClickListener {
+            val pos = holder.adapterPosition
+            if (pos != RecyclerView.NO_POSITION) {
+                onDelete?.invoke(items[pos])
+            }
         }
     }
 
-    class PhotoViewHolder(v: View) : RecyclerView.ViewHolder(v) {
-        val img: ImageView = v.findViewById(R.id.imgPhoto)
-    }
-
-    /** Add new selected photos */
-    fun updateNewPhotos(list: List<Uri>) {
-        newPhotos.clear()
-        newPhotos.addAll(list)
+    fun updateItems(newItems: List<DocItem>) {
+        items.clear()
+        items.addAll(newItems)
         notifyDataSetChanged()
     }
 
-    /** Set existing photos from Firestore */
-    fun setExistingPhotos(urls: List<String>) {
-        existingPhotos.clear()
-        existingPhotos.addAll(urls)
-        notifyDataSetChanged()
+    fun removeById(docId: String) {
+        val idx = items.indexOfFirst { it.id == docId }
+        if (idx >= 0) {
+            items.removeAt(idx)
+            notifyItemRemoved(idx)
+        }
     }
+
+    fun getItems(): List<DocItem> = items
 }

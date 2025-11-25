@@ -1,17 +1,39 @@
 package com.example.refrotech
 
+import android.app.DatePickerDialog
+import android.content.Intent
 import android.os.Bundle
+import android.widget.LinearLayout
+import android.widget.Spinner
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.firebase.firestore.FirebaseFirestore
+import java.util.*
 
 class TechnicianHistory : AppCompatActivity() {
 
     private val db = FirebaseFirestore.getInstance()
-    private lateinit var recyclerHistory: androidx.recyclerview.widget.RecyclerView
-    private lateinit var adapter: HistoryAdapter
+
+    private lateinit var recycler: androidx.recyclerview.widget.RecyclerView
+    private lateinit var adapter: HistoryAdapterTechnician
+
+    private lateinit var navHome: LinearLayout
+    private lateinit var navHistory: LinearLayout
+
+    // NEW FILTER UI
+    private lateinit var spinnerStatusFilter: Spinner
+    private lateinit var tvDateFilter: TextView
+
     private var technicianId: String = ""
+
+    // STORE EVERYTHING FETCHED
+    private val allJobs = mutableListOf<Schedule>()
+
+    // FILTER VALUES
+    private var filterStatus: String = "all"
+    private var filterDate: String? = null   // yyyy-MM-dd
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -19,26 +41,163 @@ class TechnicianHistory : AppCompatActivity() {
 
         technicianId = intent.getStringExtra("userId") ?: ""
 
-        recyclerHistory = findViewById(R.id.recyclerHistory)
-        recyclerHistory.layoutManager = LinearLayoutManager(this)
+        recycler = findViewById(R.id.recyclerHistory)
+        recycler.layoutManager = LinearLayoutManager(this)
 
-        adapter = HistoryAdapter(mutableListOf())
-        recyclerHistory.adapter = adapter
+        adapter = HistoryAdapterTechnician(mutableListOf())
+        recycler.adapter = adapter
 
+        spinnerStatusFilter = findViewById(R.id.spinnerStatusFilter)
+        tvDateFilter = findViewById(R.id.tvDateFilter)
+
+        navHome = findViewById(R.id.navHome)
+        navHistory = findViewById(R.id.navHistory)
+
+        navHome.setOnClickListener {
+            val i = Intent(this, TechnicianDashboard::class.java)
+            i.putExtra("userId", technicianId)
+            startActivity(i)
+            finish()
+        }
+
+        navHistory.setOnClickListener {
+            val i = Intent(this, TechnicianHistory::class.java)
+            i.putExtra("userId", technicianId)
+            startActivity(i)
+            finish()
+        }
+
+        adapter.onItemClick = { schedule ->
+            val i = Intent(this, TechnicianJobDetail::class.java)
+            i.putExtra("userId", technicianId)
+
+            if (schedule.origin == "request") {
+                i.putExtra("origin", "request")
+                i.putExtra("id", schedule.requestId)
+            } else {
+                i.putExtra("origin", "schedule")
+                i.putExtra("id", schedule.scheduleId)
+            }
+            startActivity(i)
+        }
+
+        setupFilters()
         loadHistory()
     }
 
+    private fun setupFilters() {
+
+        val statuses = listOf("All", "Confirmed", "On-Progress", "Completed")
+        val adapterSpinner = android.widget.ArrayAdapter(
+            this,
+            android.R.layout.simple_spinner_item,
+            statuses
+        )
+        adapterSpinner.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        spinnerStatusFilter.adapter = adapterSpinner
+
+        spinnerStatusFilter.setOnItemSelectedListener(object :
+            android.widget.AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(
+                parent: android.widget.AdapterView<*>,
+                view: android.view.View?,
+                pos: Int,
+                id: Long
+            ) {
+                filterStatus = statuses[pos].lowercase()
+                applyFilters()
+            }
+
+            override fun onNothingSelected(parent: android.widget.AdapterView<*>) {}
+        })
+
+        tvDateFilter.setOnClickListener { pickDate() }
+    }
+
+    private fun pickDate() {
+        val c = Calendar.getInstance()
+
+        val dp = DatePickerDialog(
+            this,
+            { _, year, month, day ->
+                val m = month + 1
+                filterDate = "%04d-%02d-%02d".format(year, m, day)
+                tvDateFilter.text = filterDate
+                applyFilters()
+            },
+            c.get(Calendar.YEAR),
+            c.get(Calendar.MONTH),
+            c.get(Calendar.DAY_OF_MONTH)
+        )
+        dp.show()
+    }
+
+    private fun applyFilters() {
+        var list = allJobs.toList()
+
+        // STATUS FILTER
+        if (filterStatus != "all") {
+            list = list.filter { it.normalizedStatus == filterStatus }
+        }
+
+        // DATE FILTER
+        if (filterDate != null) {
+            list = list.filter { it.date == filterDate }
+        }
+
+        adapter.updateData(list)
+    }
+
     private fun loadHistory() {
+        val excluded = listOf("pending", "accepted", "rejected")
+        val results = mutableListOf<Schedule>()
+
+        // ========== LOAD REQUEST JOBS ==========
         db.collection(FirestoreFields.REQUESTS)
             .whereArrayContains(FirestoreFields.FIELD_TECHNICIAN_IDS, technicianId)
-            .whereEqualTo(FirestoreFields.FIELD_JOB_STATUS, "completed")
             .get()
             .addOnSuccessListener { snap ->
-                val list = snap.documents.map { RequestData.fromFirestore(it) }
-                adapter.updateData(list)
+
+                for (doc in snap.documents) {
+                    val jobStatus = (doc.getString("jobStatus") ?: "").lowercase()
+                    if (jobStatus !in excluded) {
+
+                        val s = JobNormalizer.requestDocToSchedule(doc)
+                        s.normalizedStatus = jobStatus   // unified field
+                        results.add(s)
+                    }
+                }
+
+                // ========== LOAD SCHEDULE JOBS ==========
+                db.collection(FirestoreFields.SCHEDULES)
+                    .whereArrayContains(FirestoreFields.FIELD_ASSIGNED_TECHNICIAN_IDS, technicianId)
+                    .get()
+                    .addOnSuccessListener { schSnap ->
+
+                        for (doc in schSnap.documents) {
+                            val workStatus = (doc.getString("workStatus") ?: "").lowercase()
+                            if (workStatus !in excluded) {
+
+                                val s = JobNormalizer.scheduleDocToSchedule(doc)
+                                s.normalizedStatus = workStatus   // unified field
+                                results.add(s)
+                            }
+                        }
+
+                        // SORT
+                        results.sortWith(compareBy({ it.date }, { it.time }))
+
+                        allJobs.clear()
+                        allJobs.addAll(results)
+
+                        adapter.updateData(results)
+                    }
+                    .addOnFailureListener { e ->
+                        Toast.makeText(this, "Failed to load schedules: ${e.message}", Toast.LENGTH_SHORT).show()
+                    }
             }
-            .addOnFailureListener { e ->
-                Toast.makeText(this, "Gagal memuat riwayat: ${e.message}", Toast.LENGTH_SHORT).show()
+            .addOnFailureListener {
+                Toast.makeText(this, "Failed to load history", Toast.LENGTH_SHORT).show()
             }
     }
 }

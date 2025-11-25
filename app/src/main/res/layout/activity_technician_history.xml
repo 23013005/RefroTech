@@ -6,9 +6,8 @@
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:background="@drawable/bglogin_pelanggan"
-    tools:context=".TechnicianHistoryActivity">
+    tools:context=".TechnicianHistory">
 
-    <!-- ===== SCROLLABLE MAIN CONTENT ===== -->
     <ScrollView
         android:layout_width="match_parent"
         android:layout_height="0dp"
@@ -23,7 +22,6 @@
             android:gravity="center_horizontal"
             android:paddingBottom="20dp">
 
-            <!-- ===== HEADER ===== -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -38,7 +36,6 @@
                     android:contentDescription="@string/app_name" />
             </LinearLayout>
 
-            <!-- ===== PAGE TITLE ===== -->
             <TextView
                 android:id="@+id/tvHistoryTitle"
                 android:layout_width="wrap_content"
@@ -50,7 +47,37 @@
                 android:layout_marginTop="30dp"
                 android:gravity="center" />
 
-            <!-- ===== HISTORY LIST ===== -->
+            <!-- FILTER BAR -->
+            <LinearLayout
+                android:id="@+id/filterBar"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="15dp"
+                android:layout_marginHorizontal="20dp"
+                android:weightSum="2">
+
+                <Spinner
+                    android:id="@+id/spinnerStatusFilter"
+                    android:layout_width="0dp"
+                    android:layout_height="40dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/input_box_login"
+                    android:padding="6dp" />
+
+                <TextView
+                    android:id="@+id/tvDateFilter"
+                    android:layout_width="0dp"
+                    android:layout_height="40dp"
+                    android:layout_weight="1"
+                    android:layout_marginStart="10dp"
+                    android:gravity="center_vertical"
+                    android:paddingLeft="12dp"
+                    android:text="Select Date"
+                    android:textColor="@color/black"
+                    android:background="@drawable/input_box_login" />
+            </LinearLayout>
+
             <com.example.refrotech.ExpandedRecyclerView
                 android:id="@+id/recyclerHistory"
                 android:layout_width="match_parent"
@@ -67,7 +94,6 @@
         </LinearLayout>
     </ScrollView>
 
-    <!-- ===== BOTTOM NAVIGATION BAR ===== -->
     <LinearLayout
         android:id="@+id/bottomNav"
         android:layout_width="match_parent"
@@ -78,7 +104,6 @@
         android:paddingHorizontal="40dp"
         android:elevation="10dp">
 
-        <!-- HOME TAB -->
         <LinearLayout
             android:id="@+id/navHome"
             android:layout_width="0dp"
@@ -102,7 +127,6 @@
                 android:fontFamily="@font/inter_bold" />
         </LinearLayout>
 
-        <!-- HISTORY TAB -->
         <LinearLayout
             android:id="@+id/navHistory"
             android:layout_width="0dp"
@@ -126,5 +150,4 @@
                 android:fontFamily="@font/inter_bold" />
         </LinearLayout>
     </LinearLayout>
-
 </LinearLayout>

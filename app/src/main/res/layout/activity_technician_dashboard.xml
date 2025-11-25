@@ -7,7 +7,7 @@
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:background="@drawable/bglogin_pelanggan"
-    tools:context=".TechnicianDashboardActivity">
+    tools:context=".TechnicianDashboard">
 
     <!-- ===== SCROLLABLE MAIN CONTENT ===== -->
     <ScrollView

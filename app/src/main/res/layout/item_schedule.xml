@@ -53,6 +53,16 @@
             android:textSize="15sp"
             android:textColor="@android:color/black" />
 
+        <!-- Status -->
+        <TextView
+            android:id="@+id/tvScheduleStatus"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Status: pending"
+            android:layout_marginTop="6dp"
+            android:textSize="14sp"
+            android:textColor="@android:color/black" />
+
         <!-- Assigned Technicians -->
         <TextView
             android:id="@+id/tvScheduleTechnicians"

@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:padding="4dp">
+
+    <ImageView
+        android:id="@+id/imgDocPreview"
+        android:layout_width="100dp"
+        android:layout_height="100dp"
+        android:scaleType="centerCrop"
+        android:contentDescription="Documentation preview"
+        android:background="@drawable/input_box_login" />
+
+    <!-- delete button overlay -->
+    <ImageView
+        android:id="@+id/btnDeleteDoc"
+        android:layout_width="28dp"
+        android:layout_height="28dp"
+        android:layout_gravity="top|end"
+        android:layout_margin="4dp"
+        android:padding="4dp"
+        android:src="@drawable/ic_delete"
+        android:contentDescription="Delete document"
+        android:backgroundTint="@android:color/transparent" />
+</FrameLayout>

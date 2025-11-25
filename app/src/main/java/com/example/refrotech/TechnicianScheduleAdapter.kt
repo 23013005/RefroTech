@@ -2,53 +2,65 @@ package com.example.refrotech
 
 import android.content.Context
 import android.view.LayoutInflater
-import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 
 class TechnicianScheduleAdapter(
-    private val onClick: (String) -> Unit
+    private val ctx: Context,
+    private var items: List<Schedule>
 ) : RecyclerView.Adapter<TechnicianScheduleAdapter.VH>() {
 
-    private var items: List<RequestData> = emptyList()
+    var onItemClick: ((Schedule) -> Unit)? = null
 
-    fun submitList(list: List<RequestData>) {
-        items = list
-        notifyDataSetChanged()
+    inner class VH(itemView: android.view.View) : RecyclerView.ViewHolder(itemView) {
+        val tvCustomer: TextView = itemView.findViewById(R.id.tvScheduleCustomer)
+        val tvTime: TextView = itemView.findViewById(R.id.tvScheduleTime)
+        val tvTechs: TextView = itemView.findViewById(R.id.tvScheduleTechnicians)
+        val tvAddress: TextView = itemView.findViewById(R.id.tvScheduleAddress)
+        val tvStatus: TextView = itemView.findViewById(R.id.tvScheduleStatus)
+        val btnEdit: ImageView? = itemView.findViewById(R.id.btnEditSchedule)
+
+        init {
+            itemView.setOnClickListener {
+                val pos = adapterPosition
+                if (pos != RecyclerView.NO_POSITION) {
+                    onItemClick?.invoke(items[pos])
+                }
+            }
+
+            btnEdit?.setOnClickListener {
+                val pos = adapterPosition
+                if (pos != RecyclerView.NO_POSITION) {
+                    val s = items[pos]
+                    val i = android.content.Intent(ctx, EditSchedulePage::class.java)
+                    i.putExtra("scheduleId", s.scheduleId)
+                    ctx.startActivity(i)
+                }
+            }
+        }
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
-        val v = LayoutInflater.from(parent.context).inflate(R.layout.item_technician_job, parent, false)
-        return VH(v, parent.context)
+        val v = LayoutInflater.from(parent.context)
+            .inflate(R.layout.item_schedule, parent, false)
+        return VH(v)
+    }
+
+    override fun onBindViewHolder(holder: VH, position: Int) {
+        val s = items[position]
+        holder.tvCustomer.text = s.customerName.ifBlank { "No name" }
+        holder.tvTime.text = "${s.date} • ${s.time}"
+        holder.tvAddress.text = s.address
+        holder.tvTechs.text = s.technicians.joinToString(", ")
+        holder.tvStatus.text = "Status: ${s.workStatus.replaceFirstChar { it.uppercase() }}"
     }
 
     override fun getItemCount(): Int = items.size
 
-    override fun onBindViewHolder(holder: VH, position: Int) {
-        holder.bind(items[position])
-    }
-
-    inner class VH(itemView: View, private val ctx: Context) : RecyclerView.ViewHolder(itemView) {
-        private val tvJobCustomer: TextView = itemView.findViewById(R.id.tvJobCustomer)
-        private val tvJobAddress: TextView = itemView.findViewById(R.id.tvJobAddress)
-        private val tvJobTime: TextView = itemView.findViewById(R.id.tvJobTime)
-
-        fun bind(r: RequestData) {
-            tvJobCustomer.text = r.name
-            tvJobAddress.text = r.address
-            tvJobTime.text = "${r.date} • ${r.time}"
-
-            itemView.setOnClickListener { onClick(r.id) }
-
-            // Optionally change appearance for completed jobs
-            // Use jobStatus if present, otherwise fallback to status (older documents)
-            val jobStatus = r.jobStatus ?: r.status ?: "scheduled"
-            if (jobStatus.equals("completed", ignoreCase = true)) {
-                itemView.alpha = 0.7f
-            } else {
-                itemView.alpha = 1f
-            }
-        }
+    fun updateData(newItems: List<Schedule>) {
+        items = newItems
+        notifyDataSetChanged()
     }
 }

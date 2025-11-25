@@ -24,7 +24,8 @@ class LeaderDashboard : AppCompatActivity() {
 
     private lateinit var adapter: ScheduleAdapter
 
-    private var listener: ListenerRegistration? = null
+    private var scheduleListener: ListenerRegistration? = null
+    private var requestListener: ListenerRegistration? = null
     private var selectedDate: String = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -46,18 +47,17 @@ class LeaderDashboard : AppCompatActivity() {
         calendarView.setOnDateChangedListener { _, date, _ ->
             selectedDate = formatDate(date)
             tvSelectedDate.text = selectedDate
-            loadSchedulesForDate(selectedDate)
+            refreshForDate(selectedDate)
         }
 
         // default = today
         val today = CalendarDay.today()
         selectedDate = formatDate(today)
         tvSelectedDate.text = selectedDate
-        loadSchedulesForDate(selectedDate)
+        refreshForDate(selectedDate)
 
         // ===================== ADD SCHEDULE BUTTON =====================
         btnAddSchedule.setOnClickListener {
-            // PASS selected date into AddSchedulePage so AddSchedulePage doesn't need an etDate
             val intent = Intent(this, AddSchedulePage::class.java)
             intent.putExtra("date", selectedDate)
             startActivity(intent)
@@ -66,49 +66,120 @@ class LeaderDashboard : AppCompatActivity() {
         setupBottomNav()
     }
 
-    // ===================== LOAD SCHEDULES =====================
-    private fun loadSchedulesForDate(date: String) {
-        listener?.remove()
+    /**
+     * Refresh displayed items for a single date by merging:
+     *  - schedules where date == selectedDate
+     *  - requests where date == selectedDate and status == "confirmed"
+     */
+    private fun refreshForDate(date: String) {
+        scheduleListener?.remove()
+        requestListener?.remove()
 
-        listener = db.collection(FirestoreFields.SCHEDULES)
+        // Listen schedules for this date
+        scheduleListener = db.collection(FirestoreFields.SCHEDULES)
             .whereEqualTo("date", date)
             .addSnapshotListener { snaps, e ->
                 if (e != null) {
                     Toast.makeText(this, "Gagal memuat jadwal: ${e.message}", Toast.LENGTH_SHORT).show()
                     return@addSnapshotListener
                 }
+                // After receiving schedules change, re-query both to merge (keeps logic simple)
+                mergeSchedulesAndConfirmedRequestsForDate(date)
+            }
 
-                if (snaps == null || snaps.isEmpty) {
-                    adapter.updateData(emptyList())
-                    return@addSnapshotListener
-                }
+        // Listen confirmed requests for this date
+        requestListener = db.collection(FirestoreFields.REQUESTS)
+            .whereEqualTo("date", date)
+            .whereEqualTo("status", "confirmed")
+            .addSnapshotListener { _, _ ->
+                // when requests change, re-merge lists for that date
+                mergeSchedulesAndConfirmedRequestsForDate(date)
+            }
 
-                val list = snaps.documents.map { doc ->
+        // initial one-off merge
+        mergeSchedulesAndConfirmedRequestsForDate(date)
+    }
 
-                    val (names, ids) = FirestoreNormalizer.normalizeTechnicians(doc)
+    private fun mergeSchedulesAndConfirmedRequestsForDate(date: String) {
+        val merged = mutableListOf<Schedule>()
 
-                    Schedule(
-                        scheduleId = doc.id,
-                        customerName = doc.getString("customerName") ?: "",
-                        date = doc.getString("date") ?: "",
-                        time = doc.getString("time") ?: "",
-                        technicians = names,
-                        technicianIds = ids,
-                        assignedTechnicianIds = ids,
-                        address = doc.getString("address") ?: "",
-                        origin = doc.getString("origin") ?: "",
-                        requestId = doc.getString("requestId") ?: ""
+        // fetch schedules for date
+        db.collection(FirestoreFields.SCHEDULES)
+            .whereEqualTo("date", date)
+            .get()
+            .addOnSuccessListener { schSnap ->
+                for (d in schSnap.documents) {
+                    val (names, ids) = try {
+                        FirestoreNormalizer.normalizeTechnicians(d)
+                    } catch (_: Exception) {
+                        Pair(emptyList<String>(), emptyList<String>())
+                    }
+
+                    merged.add(
+                        Schedule(
+                            scheduleId = d.id,
+                            customerName = d.getString("customerName") ?: "",
+                            date = d.getString("date") ?: "",
+                            time = d.getString("time") ?: "",
+                            technicians = names,
+                            technicianIds = ids,
+                            assignedTechnicianIds = d.get("assignedTechnicianIds") as? List<String> ?: ids,
+                            address = d.getString("address") ?: "",
+                            origin = d.getString("origin") ?: "schedule",
+                            requestId = d.getString("requestId") ?: ""
+                        )
                     )
                 }
 
-                adapter.updateData(list)
+                // fetch confirmed requests for date
+                db.collection(FirestoreFields.REQUESTS)
+                    .whereEqualTo("date", date)
+                    .whereEqualTo("status", "confirmed")
+                    .get()
+                    .addOnSuccessListener { reqSnap ->
+                        for (r in reqSnap.documents) {
+                            // name may be stored in "customerName" or "name"
+                            val custName = r.getString("customerName") ?: r.getString("name") ?: ""
+                            val (names, ids) = try {
+                                FirestoreNormalizer.normalizeTechnicians(r)
+                            } catch (_: Exception) {
+                                Pair(emptyList<String>(), emptyList<String>())
+                            }
+
+                            // convert request -> Schedule-like item for display
+                            merged.add(
+                                Schedule(
+                                    scheduleId = r.id,
+                                    customerName = custName,
+                                    date = r.getString("date") ?: "",
+                                    time = r.getString("time") ?: "",
+                                    technicians = names,
+                                    technicianIds = ids,
+                                    assignedTechnicianIds = r.get("assignedTechnicianIds") as? List<String> ?: (r.get("technicianIds") as? List<String> ?: ids),
+                                    address = r.getString("address") ?: "",
+                                    origin = "request",
+                                    requestId = r.id
+                                )
+                            )
+                        }
+
+                        // sort lexicographically by yyyy-MM-dd and HH:mm
+                        merged.sortWith(compareBy({ it.date }, { it.time }))
+
+                        adapter.updateData(merged)
+                    }
+                    .addOnFailureListener { e ->
+                        Toast.makeText(this, "Failed loading requests: ${e.message}", Toast.LENGTH_SHORT).show()
+                    }
+            }
+            .addOnFailureListener { e ->
+                Toast.makeText(this, "Failed loading schedules: ${e.message}", Toast.LENGTH_SHORT).show()
             }
     }
 
     // ===================== DATE FORMATTER =====================
     private fun formatDate(day: CalendarDay): String {
         val y = day.year
-        // NOTE: materialcalendarview's month/day are 1-based already
         val m = String.format("%02d", day.month)
         val d = String.format("%02d", day.day)
         return "$y-$m-$d"
@@ -116,9 +187,8 @@ class LeaderDashboard : AppCompatActivity() {
 
     // ===================== BOTTOM NAVIGATION =====================
     private fun setupBottomNav() {
-        // The nav items in layout are LinearLayout — use LinearLayout to avoid ClassCastException
         findViewById<LinearLayout>(R.id.navDashboard).setOnClickListener {
-            // reload same page (no-op)
+            // stay
         }
 
         findViewById<LinearLayout>(R.id.navTechnician).setOnClickListener {
@@ -132,6 +202,7 @@ class LeaderDashboard : AppCompatActivity() {
 
     override fun onStop() {
         super.onStop()
-        listener?.remove()
+        scheduleListener?.remove()
+        requestListener?.remove()
     }
 }
