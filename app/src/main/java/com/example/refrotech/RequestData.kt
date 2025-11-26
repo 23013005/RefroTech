@@ -25,8 +25,18 @@ data class RequestData(
     val oldDate: String? = null,
     val oldTime: String? = null,
 
-    val unitsCount: Int = 0
-) {
+    // reschedule metadata
+    val rescheduleRequested: Boolean = false,
+    val rescheduleStatus: String? = null,
+
+    val unitsCount: Int = 0,
+
+    // ===== NEW FIXED FIELDS (technician fields for reschedule) =====
+    val technician: String? = null,                      // comma-separated names
+    val assignedTechnicianIds: List<String> = emptyList() // final technician IDs
+)
+
+{
     companion object {
         fun fromFirestore(doc: DocumentSnapshot): RequestData {
             val data = doc.data ?: emptyMap<String, Any>()
@@ -35,6 +45,10 @@ data class RequestData(
             val createdAtMillis = createdAt?.toDate()?.time
 
             val unitsList = data["units"] as? List<Map<String, Any>> ?: emptyList()
+
+            // NEW: These fields must be read from Firestore
+            val technicianString = data["technician"]?.toString()
+            val techIds = data["assignedTechnicianIds"] as? List<String> ?: emptyList()
 
             return RequestData(
                 id = doc.id,
@@ -56,9 +70,16 @@ data class RequestData(
                 oldDate = data["oldDate"]?.toString(),
                 oldTime = data["oldTime"]?.toString(),
 
-                unitsCount = unitsList.size
+                // reschedule metadata (kept exactly as your version)
+                rescheduleRequested = (data["rescheduleRequested"] as? Boolean) ?: false,
+                rescheduleStatus = data["rescheduleStatus"]?.toString(),
+
+                unitsCount = unitsList.size,
+
+                // NEW: preserve new fields
+                technician = technicianString,
+                assignedTechnicianIds = techIds
             )
         }
     }
 }
-

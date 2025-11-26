@@ -4,7 +4,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="@drawable/bglogin_pelanggan"
+    android:background="@drawable/bg_lobby_pemimpin"
     tools:context=".LeaderConfirmationActivity">
 
     <!-- ================= HEADER (Logo) ================= -->
@@ -52,7 +52,7 @@
             android:layout_width="0dp"
             android:layout_height="60dp"
             android:layout_weight="1"
-            android:background="@drawable/login_button"
+            android:background="@drawable/button_tambah_jadwal"
             android:gravity="center"
             android:text="Permintaan Baru"
             android:paddingBottom="7dp"
@@ -67,7 +67,7 @@
             android:layout_height="60dp"
             android:layout_weight="1"
             android:layout_marginStart="12dp"
-            android:background="@drawable/login_button"
+            android:background="@drawable/button_tambah_jadwal"
             android:gravity="center"
             android:text="Penjadwalan Ulang"
             android:textStyle="bold"

@@ -20,6 +20,8 @@
         android:focusable="false"
         android:clickable="true"
         android:padding="10dp"
+        android:textColorHint="@color/Grey"
+        android:textColor="@color/black"
         android:layout_marginTop="16dp"
         android:background="@drawable/input_box_login"/>
 
@@ -28,6 +30,8 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:hint="Jam baru pilih disini"
+        android:textColorHint="@color/Grey"
+        android:textColor="@color/black"
         android:focusable="false"
         android:clickable="true"
         android:padding="10dp"

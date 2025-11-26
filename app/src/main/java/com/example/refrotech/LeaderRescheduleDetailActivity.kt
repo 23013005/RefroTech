@@ -6,10 +6,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
-import android.widget.ArrayAdapter
-import android.widget.CheckBox
-import android.widget.ListView
-import android.widget.TextView
+import android.view.ViewGroup
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -18,31 +15,36 @@ import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
 
 /**
- * LeaderRescheduleDetailActivity (fixed)
+ * LeaderRescheduleDetailActivity : Handles reschedule detail display and technician assignment.
  *
- * - Loads a request
- * - Shows old schedule & proposed new schedule (if any)
- * - Approve -> leader assigns technicians and the request's date/time is set to the proposed values
- * - Reject  -> leader provides reject reason; request is marked "rejected"
+ * Behaviour:
+ *  - Shows old schedule & proposed new schedule (if any)
+ *  - Approve -> leader assigns technicians and the request's date/time is set to the proposed values
+ *  - Reject  -> leader provides reject reason; request is marked "rejected"
  *
- * This file intentionally avoids referencing dialog layout IDs that do not exist in your repo.
- * Instead the Assign-Technician dialog is created with setMultiChoiceItems to avoid missing-XML-id errors.
+ * Important behaviour detail (per user choice "C"):
+ *  - Technician availability for reschedule is determined solely by the
+ *    technician's unavailableFrom / unavailableTo fields.
+ *  - Existing assignments on other requests DO NOT make a technician unavailable.
+ *  - The dialog shows ALL technicians. Unavailable ones are shown but cannot be selected.
+ *  - If none of the technicians are available for the proposed date, the dialog will
+ *    show all technicians but keep them unselectable (matches AddSchedulePage behaviour).
  */
 class LeaderRescheduleDetailActivity : AppCompatActivity() {
 
     private val db = FirebaseFirestore.getInstance()
 
-    private lateinit var tvDetailName: TextView
-    private lateinit var tvDetailPhone: TextView
-    private lateinit var tvDetailAddress: TextView
-    private lateinit var tvOldDate: TextView
-    private lateinit var tvOldTime: TextView
-    private lateinit var tvNewDate: TextView
-    private lateinit var tvNewTime: TextView
+    private lateinit var tvDetailName: android.widget.TextView
+    private lateinit var tvDetailPhone: android.widget.TextView
+    private lateinit var tvDetailAddress: android.widget.TextView
+    private lateinit var tvOldDate: android.widget.TextView
+    private lateinit var tvOldTime: android.widget.TextView
+    private lateinit var tvNewDate: android.widget.TextView
+    private lateinit var tvNewTime: android.widget.TextView
     private lateinit var btnDetailMap: android.widget.ImageView
     private lateinit var rvDetailUnits: RecyclerView
-    private lateinit var btnDetailApprove: TextView
-    private lateinit var btnDetailReject: TextView
+    private lateinit var btnDetailApprove: android.widget.TextView
+    private lateinit var btnDetailReject: android.widget.TextView
 
     private var requestId: String = ""
     private var newDate: String = ""
@@ -52,6 +54,9 @@ class LeaderRescheduleDetailActivity : AppCompatActivity() {
     private val availableTechNames = mutableListOf<String>()
     private val availableTechIds = mutableListOf<String>()
     private val availableTechDocs = mutableListOf<Map<String, Any>>() // raw doc map
+
+    // assigned technician ids from the request document (if any)
+    private val assignedTechnicianIdsFromRequest = mutableListOf<String>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -112,6 +117,7 @@ class LeaderRescheduleDetailActivity : AppCompatActivity() {
 
     /**
      * Load request details from Firestore and populate UI.
+     * Also pulls assignedTechnicianIds (if present) so we can pre-check them in the dialog.
      */
     private fun loadRequestDetails(id: String) {
         db.collection(FirestoreFields.REQUESTS).document(id)
@@ -138,6 +144,16 @@ class LeaderRescheduleDetailActivity : AppCompatActivity() {
                 newDate = req.newDate ?: ""
                 newTime = req.newTime ?: ""
 
+                // capture assignedTechnicianIds from the document (fall back to technicianIds or empty)
+                assignedTechnicianIdsFromRequest.clear()
+                val assignedFromDoc = doc.get("assignedTechnicianIds") as? List<*>
+                val techIdsFromDoc = doc.get("technicianIds") as? List<*>
+                if (!assignedFromDoc.isNullOrEmpty()) {
+                    assignedFromDoc.forEach { v -> if (v is String) assignedTechnicianIdsFromRequest.add(v) }
+                } else if (!techIdsFromDoc.isNullOrEmpty()) {
+                    techIdsFromDoc.forEach { v -> if (v is String) assignedTechnicianIdsFromRequest.add(v) }
+                }
+
                 // convert units to ACUnit and display
                 val acUnits = (req.units ?: emptyList<Map<String, Any>>()).map { m ->
                     val brand = (m["brand"] ?: "").toString()
@@ -155,8 +171,12 @@ class LeaderRescheduleDetailActivity : AppCompatActivity() {
     /**
      * Show an assign-technicians dialog.
      *
-     * Implementation uses AlertDialog.setMultiChoiceItems to avoid relying on a custom XML that may be missing.
-     * We fetch technicians, compute simple availability for each on newDate, then present them as selectable items.
+     * Implementation replaced the previous MultiChoice dialog with a RecyclerView using TechnicianMultiSelectAdapter.
+     * Behaviour:
+     * - show ALL technicians
+     * - mark unavailable ones as unselectable (keeps visible)
+     * - if none available, all remain unselectable (this matches AddSchedulePage behaviour)
+     * - pre-check technicians that are already assigned in the request (assignedTechnicianIdsFromRequest)
      */
     private fun showAssignTechnicianDialog() {
         // load technicians from Firestore
@@ -180,54 +200,84 @@ class LeaderRescheduleDetailActivity : AppCompatActivity() {
                     return@addOnSuccessListener
                 }
 
-                // Prepare arrays for multi-choice dialog
-                val namesArray = availableTechNames.toTypedArray()
-                val checked = BooleanArray(namesArray.size) { false }
-                val availability = BooleanArray(namesArray.size) { false } // true = unavailable
-
-                // compute availability for each tech
-                for (i in namesArray.indices) {
+                // Build the list of TechItem for the adapter (matching TechnicianMultiSelectAdapter.TechItem)
+                val items = mutableListOf<TechnicianMultiSelectAdapter.TechItem>()
+                var anyAvailable = false
+                for (i in availableTechNames.indices) {
+                    val name = availableTechNames[i]
+                    val id = availableTechIds[i]
                     val doc = availableTechDocs.getOrNull(i) ?: emptyMap<String, Any>()
-                    availability[i] = isTechnicianUnavailableForCandidate(doc, newDate)
+                    val isUnavailable = isTechnicianUnavailableForCandidate(doc, newDate)
+                    if (!isUnavailable) anyAvailable = true
+
+                    // Pre-check if this tech was previously assigned on the request
+                    val preChecked = assignedTechnicianIdsFromRequest.contains(id)
+
+                    items.add(
+                        TechnicianMultiSelectAdapter.TechItem(
+                            id = id,
+                            name = name,
+                            status = if (isUnavailable) "Unavailable" else "Available",
+                            disabled = isUnavailable,
+                            checked = preChecked
+                        )
+                    )
                 }
 
-                // Build message with proposed new date/time
+                // If none available -> mark all as disabled (this keeps existing checked flags but UI will not allow selection changes)
+                if (!anyAvailable) {
+                    for (idx in items.indices) {
+                        items[idx] = items[idx].copy(disabled = true)
+                    }
+                }
+
+                // Create RecyclerView for dialog
+                val recycler = RecyclerView(this)
+                recycler.layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+                recycler.layoutManager = LinearLayoutManager(this)
+                val adapter = TechnicianMultiSelectAdapter(items.toMutableList()) {
+                    // no-op selection changed callback; adapter updates item.checked
+                }
+                recycler.adapter = adapter
+
                 val message = "Proposed: ${if (newDate.isBlank()) "-" else newDate} ${if (newTime.isBlank()) "" else "@ $newTime"}\n\n" +
                         "Unavailable technicians cannot be selected."
 
-                val builder = AlertDialog.Builder(this)
+                val dialog = AlertDialog.Builder(this)
                     .setTitle("Assign Technicians")
                     .setMessage(message)
-                    .setMultiChoiceItems(namesArray, checked) { dialogInterface, which, isChecked ->
-                        // if tech unavailable and user tries to check -> disallow
-                        if (availability[which] && isChecked) {
-                            // uncheck it immediately and show toast
-                            (dialogInterface as? AlertDialog)?.listView?.setItemChecked(which, false)
-                            checked[which] = false
-                            Toast.makeText(this, "${namesArray[which]} is unavailable on $newDate", Toast.LENGTH_SHORT).show()
-                        } else {
-                            checked[which] = isChecked
-                        }
-                    }
+                    .setView(recycler)
                     .setPositiveButton("Confirm", null)
                     .setNegativeButton("Cancel", null)
+                    .create()
 
-                val dialog = builder.create()
                 dialog.setOnShowListener {
                     val btnConfirm = dialog.getButton(AlertDialog.BUTTON_POSITIVE)
                     btnConfirm.setOnClickListener {
-                        val selectedIds = mutableListOf<String>()
-                        for (i in checked.indices) {
-                            if (checked[i]) selectedIds.add(availableTechIds[i])
+                        // collect selected ids/names, but ensure none are disabled (guard)
+                        val selectedIds = adapter.getSelectedIds().toMutableList()
+                        val selectedNames = adapter.getSelectedNames().toMutableList()
+
+                        // Double-check disabled -> should not be selected, but guard anyway
+                        val itemsList = (0 until items.size).map { i -> items[i] }
+                        for (it in itemsList) {
+                            if (it.disabled && selectedIds.contains(it.id)) {
+                                Toast.makeText(this, "${it.name} is unavailable and cannot be selected.", Toast.LENGTH_SHORT).show()
+                                return@setOnClickListener
+                            }
                         }
+
                         if (selectedIds.isEmpty()) {
                             Toast.makeText(this, "Select at least one technician", Toast.LENGTH_SHORT).show()
                             return@setOnClickListener
                         }
-                        saveAssignedSchedule(selectedIds)
+
+                        // Persist assignment
+                        saveAssignedSchedule(selectedIds, selectedNames)
                         dialog.dismiss()
                     }
                 }
+
                 dialog.show()
             }
             .addOnFailureListener { e ->
@@ -238,22 +288,34 @@ class LeaderRescheduleDetailActivity : AppCompatActivity() {
     /**
      * Check technician unavailability for a candidate date string (yyyy-MM-dd expected).
      * Uses same logic you used elsewhere: unavailableFrom/unavailableTo (strings).
+     *
+     * IMPORTANT: returns FALSE (available) when fields are absent/blank/invalid.
      */
     private fun isTechnicianUnavailableForCandidate(docFields: Map<String, Any>, targetDateStr: String): Boolean {
         if (targetDateStr.isBlank()) return false
+
+        // No fields? → AVAILABLE
+        val rawFrom = docFields["unavailableFrom"]?.toString() ?: return false
+        val rawTo = docFields["unavailableTo"]?.toString()
+
+        // Values "null", "", or invalid → AVAILABLE
+        if (rawFrom.isBlank() || rawFrom == "null") return false
+
         val dateFormat = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
-        val from = docFields["unavailableFrom"]?.toString() ?: return false
-        val to = docFields["unavailableTo"]?.toString()
 
         val target = try { dateFormat.parse(targetDateStr) } catch (e: Exception) { return false }
-        val start = try { dateFormat.parse(from) } catch (e: Exception) { return false }
+        val start = try { dateFormat.parse(rawFrom) } catch (e: Exception) { return false }
 
-        if (to.isNullOrBlank()) {
-            // unavailable from 'start' indefinitely
+        val end = if (rawTo != null && rawTo != "null" && rawTo.isNotBlank()) {
+            try { dateFormat.parse(rawTo) } catch (e: Exception) { null }
+        } else null
+
+        // Case 1: Indefinite unavailability
+        if (end == null) {
             return !target.before(start)
         }
 
-        val end = try { dateFormat.parse(to) } catch (e: Exception) { return false }
+        // Case 2: Range
         return !target.before(start) && !target.after(end)
     }
 
@@ -263,21 +325,20 @@ class LeaderRescheduleDetailActivity : AppCompatActivity() {
      *  - status -> "assigned"
      *  - jobStatus -> "assigned"
      *  - technician -> comma-separated names
+     *  - technicians -> list of names
      *  - assignedTechnicianIds -> list of ids
+     *  - technicianIds -> list of ids
      *  - date/time -> newDate/newTime
      */
-    private fun saveAssignedSchedule(techIds: List<String>) {
+    private fun saveAssignedSchedule(techIds: List<String>, techNames: List<String>) {
         if (requestId.isBlank()) return
-
-        val names = techIds.mapNotNull { id ->
-            val idx = availableTechIds.indexOf(id)
-            if (idx >= 0) availableTechNames.getOrNull(idx) else null
-        }
 
         val updates = mapOf(
             "status" to "assigned",
             "jobStatus" to "assigned",
-            "technician" to names.joinToString(", "),
+            "technician" to techNames.joinToString(", "),
+            "technicians" to techNames,
+            "technicianIds" to techIds,
             "assignedTechnicianIds" to techIds,
             "date" to newDate,
             "time" to newTime,

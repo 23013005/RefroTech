@@ -30,6 +30,7 @@ class DashboardCustomer : AppCompatActivity() {
 
     private lateinit var navHome: LinearLayout
     private lateinit var navHistory: LinearLayout
+    private lateinit var navLogout: FrameLayout
 
     private lateinit var adapter: ACUnitAdapter
     private val acUnits = mutableListOf<ACUnit>()
@@ -54,6 +55,7 @@ class DashboardCustomer : AppCompatActivity() {
         btnOpenMaps = findViewById(R.id.btnOpenMaps)
         navHome = findViewById(R.id.navHome)
         navHistory = findViewById(R.id.navHistory)
+        navLogout = findViewById<FrameLayout>(R.id.navLogout)
 
         // === Setup RecyclerView ===
         adapter = ACUnitAdapter(acUnits)
@@ -93,12 +95,29 @@ class DashboardCustomer : AppCompatActivity() {
         }
 
         navHistory.setOnClickListener {
-            // Pass the userId so CustomerHistory can query only this customer's requests
-            val userId = auth.currentUser?.uid
             val intent = Intent(this, CustomerHistory::class.java)
-            intent.putExtra("userId", userId)
+            intent.putExtra("userId", auth.currentUser?.uid)
             startActivity(intent)
         }
+
+        navLogout.setOnClickListener {
+            LogoutHelper.logout(this)
+        }
+
+
+        // START in-app notification listener for this dashboard
+        InAppNotificationManager.startListening(this)
+    }
+
+    override fun onStop() {
+        super.onStop()
+        // stop listener when user leaves
+        InAppNotificationManager.stopListening()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        InAppNotificationManager.stopListening()
     }
 
     // ===== Date Picker with Restrictions =====
@@ -206,6 +225,15 @@ class DashboardCustomer : AppCompatActivity() {
             return
         }
 
+        // =========================================================
+        // REQUIRED FIX: Prevent submitting if no units were added
+        // =========================================================
+        if (acUnits.isEmpty()) {
+            Toast.makeText(this, "Tambahkan minimal 1 unit AC terlebih dahulu", Toast.LENGTH_SHORT).show()
+            return
+        }
+        // =========================================================
+
         // convert date to ISO yyyy-MM-dd if needed
         val isoDate = try {
             if (dateInputRaw.contains("/")) {
@@ -235,16 +263,16 @@ class DashboardCustomer : AppCompatActivity() {
             "phone" to phone,
             "status" to "pending",
             "units" to unitMaps,
-            // Use createdAt & createdAtMillis so other pages/readers can sort and read consistently
             "createdAt" to now,
             "createdAtMillis" to now.toDate().time
         )
 
         db.collection("requests")
             .add(requestData)
-            .addOnSuccessListener { _ ->
+            .addOnSuccessListener { docRef ->
                 Toast.makeText(this, "Request saved", Toast.LENGTH_SHORT).show()
-                // Clear form so the customer can submit another request quickly
+                // Optionally create an in-app notification for leaders here:
+                // createLeaderNotification(name)
                 clearForm()
             }
             .addOnFailureListener { e ->
@@ -252,7 +280,6 @@ class DashboardCustomer : AppCompatActivity() {
             }
     }
 
-    // ===== Clear All Fields After Sending =====
     private fun clearForm() {
         etName.text.clear()
         etAddress.text.clear()
@@ -262,5 +289,31 @@ class DashboardCustomer : AppCompatActivity() {
         etPhone.text.clear()
         acUnits.clear()
         adapter.notifyDataSetChanged()
+    }
+
+    // OPTIONAL: if you want to save an in-app notification for leaders from client-side:
+    private fun createLeaderNotification(customerName: String) {
+        try {
+            // This assumes you know leader userId(s). If you have multiple leaders, iterate.
+            // You can also write to a single "inbox" document for leaders if preferred.
+            db.collection("users")
+                .whereEqualTo("role", "leader")
+                .get()
+                .addOnSuccessListener { snap ->
+                    for (d in snap.documents) {
+                        val leaderId = d.id
+                        val notif = hashMapOf(
+                            "userId" to leaderId,
+                            "title" to "Permintaan Baru",
+                            "message" to "$customerName mengirim permintaan baru",
+                            "createdAt" to Timestamp.now(),
+                            "read" to false
+                        )
+                        db.collection("notifications").add(notif)
+                    }
+                }
+        } catch (ex: Exception) {
+            // do not fail user request if notification write fails
+        }
     }
 }

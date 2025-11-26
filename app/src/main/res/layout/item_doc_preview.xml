@@ -2,15 +2,23 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
-    android:padding="4dp">
+    android:padding="4dp"
+    android:clickable="false"
+    android:focusable="false"
+    android:focusableInTouchMode="false">
 
     <ImageView
         android:id="@+id/imgDocPreview"
         android:layout_width="100dp"
         android:layout_height="100dp"
         android:scaleType="centerCrop"
-        android:contentDescription="Documentation preview"
-        android:background="@drawable/input_box_login" />
+        android:background="@drawable/input_box_login"
+
+        android:clickable="true"
+        android:focusable="true"
+        android:focusableInTouchMode="true"
+        android:duplicateParentState="false"
+        android:foreground="?attr/selectableItemBackgroundBorderless" />
 
     <!-- delete button overlay -->
     <ImageView
@@ -22,5 +30,9 @@
         android:padding="4dp"
         android:src="@drawable/ic_delete"
         android:contentDescription="Delete document"
-        android:backgroundTint="@android:color/transparent" />
+        android:backgroundTint="@android:color/transparent"
+
+        android:clickable="true"
+        android:focusable="true"
+        android:focusableInTouchMode="true" />
 </FrameLayout>

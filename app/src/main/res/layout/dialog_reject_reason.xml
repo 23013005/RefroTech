@@ -16,7 +16,8 @@
             android:id="@+id/rbTechUnavailable"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Teknisi Tidak Tersedia"/>
+            android:text="Teknisi Tidak Tersedia"
+            />
 
         <RadioButton
             android:id="@+id/rbCustomerUnreachable"
@@ -42,6 +43,8 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:hint="Enter custom reason"
+        android:textColorHint="@color/Grey"
+        android:textColor="@color/black"
         android:layout_marginTop="10dp"
         android:padding="12dp"
         android:background="@drawable/input_box_login"/>

@@ -8,6 +8,11 @@
     android:background="@drawable/bg_lobby_pemimpin"
     tools:context=".LeaderDashboard">
 
+    <include
+        android:id="@+id/inAppNotif"
+        layout="@layout/view_in_app_notification"
+        android:visibility="gone" />
+
     <!-- ===== SCROLLABLE MAIN CONTENT ===== -->
     <ScrollView
         android:layout_width="match_parent"
@@ -38,7 +43,6 @@
                     android:background="@drawable/refro_logo2"
                     android:contentDescription="@string/app_name" />
             </LinearLayout>
-
             <!-- ===== PAGE TITLE ===== -->
             <TextView
                 android:id="@+id/dashboardTitle"
@@ -48,8 +52,11 @@
                 android:textSize="25sp"
                 android:textColor="@color/black"
                 android:fontFamily="@font/inter_bold"
-                android:layout_marginTop="30dp"
-                android:gravity="center" />
+                android:layout_marginTop="20dp"
+                android:gravity="left"
+                />
+
+
 
             <!-- ===== CALENDAR ===== -->
             <com.prolificinteractive.materialcalendarview.MaterialCalendarView
@@ -95,7 +102,7 @@
                 android:layout_marginHorizontal="120dp"
                 android:layout_marginTop="15dp"
                 android:layout_marginBottom="40dp"
-                android:background="@drawable/login_button"
+                android:background="@drawable/button_tambah_jadwal"
                 android:paddingVertical="10dp">
 
                 <TextView
@@ -107,7 +114,34 @@
                     android:fontFamily="@font/inter_bold"
                     android:layout_gravity="center" />
             </FrameLayout>
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+                <FrameLayout
+                    android:id="@+id/navLogout"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:orientation="horizontal">
+                    <ImageView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:src="@drawable/red_button"
+                        android:layout_gravity="center"
+                        android:contentDescription="Logout"/>
 
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Logout"
+                        android:textColor="@color/white"
+                        android:textSize="16sp"
+                        android:fontFamily="@font/inter_bold"
+                        android:layout_gravity="center"
+                        android:paddingBottom="5dp"/>
+                </FrameLayout>
+            </LinearLayout>
         </LinearLayout>
     </ScrollView>
 

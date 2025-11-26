@@ -138,4 +138,26 @@
         </FrameLayout>
     </LinearLayout>
 
+    <!-- ====================================================== -->
+    <!-- NEW FULL-WIDTH "RATE US!" BUTTON (Option C)            -->
+    <!-- Only displayed for COMPLETED work (handled in adapter) -->
+    <!-- ====================================================== -->
+    <FrameLayout
+        android:id="@+id/btnRateUs"
+        android:layout_width="match_parent"
+        android:layout_height="44dp"
+        android:background="@drawable/login_button"
+        android:padding="8dp"
+        android:layout_marginTop="10dp"
+        android:visibility="gone">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Rate Us!"
+            android:textColor="@android:color/black"
+            android:layout_gravity="center"
+            android:textStyle="bold"/>
+    </FrameLayout>
+
 </LinearLayout>

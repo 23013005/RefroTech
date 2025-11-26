@@ -124,13 +124,31 @@ class MainActivity : AppCompatActivity() {
             .addOnSuccessListener {
                 val user = auth.currentUser
                 if (user != null && user.isEmailVerified) {
-                    Toast.makeText(this, "Login berhasil!", Toast.LENGTH_SHORT).show()
 
-                    val intent = Intent(this, DashboardCustomer::class.java)
-                    intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-                    startActivity(intent)
-                    overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
-                    finish()
+                    // NEW STEP — Fetch Firestore profile
+                    db.collection("users")
+                        .whereEqualTo("email", email)
+                        .whereEqualTo("role", "customer")
+                        .get()
+                        .addOnSuccessListener { snap ->
+                            if (snap.isEmpty) {
+                                Toast.makeText(this, "Akun tidak ditemukan di database pelanggan.", Toast.LENGTH_LONG).show()
+                                return@addOnSuccessListener
+                            }
+
+                            val doc = snap.documents[0]
+                            val firestoreUserId = doc.id   // IMPORTANT!!!
+
+                            Toast.makeText(this, "Login berhasil!", Toast.LENGTH_SHORT).show()
+
+                            val intent = Intent(this, DashboardCustomer::class.java)
+                            intent.putExtra("userId", firestoreUserId)   // PASS THE CORRECT ID
+                            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+
+                            startActivity(intent)
+                            overridePendingTransition(R.anim.slide_in_right, R.anim.slide_out_left)
+                            finish()
+                        }
 
                 } else {
                     Toast.makeText(this, "Verifikasi email sebelum login!", Toast.LENGTH_LONG).show()
@@ -141,6 +159,7 @@ class MainActivity : AppCompatActivity() {
                 Toast.makeText(this, "Login gagal: ${it.message}", Toast.LENGTH_LONG).show()
             }
     }
+
 
     private fun showForgotPasswordDialog() {
         val layout = LinearLayout(this)

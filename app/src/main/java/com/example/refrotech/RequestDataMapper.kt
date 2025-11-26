@@ -34,6 +34,9 @@ object RequestDataMapper {
             newTime = null,
             oldDate = null,
             oldTime = null,
+            // schedule-origin documents do not have reschedule metadata; default false/null
+            rescheduleRequested = false,
+            rescheduleStatus = null,
             unitsCount = 0
         )
     }

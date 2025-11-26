@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/scrollRate"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true"
+    android:background="@drawable/bg_rating"
+    android:padding="16dp">
+
+    <LinearLayout
+        android:orientation="vertical"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="12dp">
+        <!-- HEADER LOGO -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <ImageView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/refro_logo2"
+                android:contentDescription="Logo"/>
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/tvRateTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Berikan Ulasan Anda!"
+            android:textSize="20sp"
+            android:textColor="@color/black"
+            android:fontFamily="@font/inter_bold"
+            android:layout_marginTop="12dp" />
+
+        <TextView
+            android:id="@+id/tvRateSubtitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Silahkan Pilih Nilai Ulasan dan Komentar anda (opsional)."
+            android:textSize="14sp"
+            android:textColor="@color/black"
+            android:layout_marginTop="8dp" />
+
+        <TextView
+            android:id="@+id/tvRateRequestInfo"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Tanggal dan Waktu Pekerjaan"
+            android:textSize="14sp"
+            android:textColor="@color/black"
+            android:layout_marginTop="12dp" />
+
+        <RatingBar
+            android:id="@+id/ratingBar"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:numStars="5"
+            android:stepSize="1.0"
+
+            android:layout_marginTop="18dp" />
+
+        <EditText
+            android:id="@+id/etRateComment"
+            android:layout_width="match_parent"
+            android:layout_height="140dp"
+            android:layout_marginTop="16dp"
+            android:gravity="top"
+            android:hint="Komentar Disini (opsional)"
+            android:background="@drawable/input_box_login"
+            android:padding="12dp"
+            android:textColor="@color/black"
+            android:textSize="14sp" />
+
+        <FrameLayout
+            android:id="@+id/btnSubmitRating"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/button_tambah_teknisi"
+            android:padding="14dp"
+            android:layout_marginTop="20dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Kirim Ulasan"
+                android:textColor="@color/black"
+                android:layout_gravity="center"
+                android:textStyle="bold"/>
+        </FrameLayout>
+
+    </LinearLayout>
+
+</ScrollView>

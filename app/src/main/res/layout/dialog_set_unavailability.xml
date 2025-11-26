@@ -18,7 +18,8 @@
         android:id="@+id/btnStartDate"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Pilih Tanggal Mulai" />
+        android:text="Pilih Tanggal Mulai"
+        />
 
     <Button
         android:id="@+id/btnEndDate"

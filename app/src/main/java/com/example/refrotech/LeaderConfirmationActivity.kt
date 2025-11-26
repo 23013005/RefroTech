@@ -104,6 +104,12 @@ class LeaderConfirmationActivity : AppCompatActivity() {
      *
      * Firestore queries for many different status variants are brittle.
      * To be safe we fetch a small superset and filter client-side here.
+     *
+     * We consider a document reschedule-related when:
+     *  - rescheduleRequested == true
+     *  - OR rescheduleStatus exists (non-blank)
+     *  - OR newDate/newTime exist
+     *  - OR status contains "resched" string (legacy variants)
      */
     private fun loadRescheduleRequests() {
         db.collection(FirestoreFields.REQUESTS)
@@ -117,10 +123,14 @@ class LeaderConfirmationActivity : AppCompatActivity() {
                     }
                 }
 
-                // any status string containing "resched" or "reschedule" we treat as reschedule-related
                 val reschedules = candidates.filter { r ->
-                    val s = (r.status ?: "").lowercase()
-                    s.contains("resched") || s.contains("reschedule") || s.contains("reschedule-pending")
+                    val statusField = (r.status ?: "").lowercase()
+                    val reschedFlag = r.rescheduleRequested
+                    val reschedStatusPresent = !r.rescheduleStatus.isNullOrBlank()
+                    val newDatePresent = !r.newDate.isNullOrBlank()
+                    val legacyText = statusField.contains("resched") || statusField.contains("reschedule") || statusField.contains("reschedule-pending")
+
+                    reschedFlag || reschedStatusPresent || newDatePresent || legacyText
                 }
 
                 adapter.updateData(reschedules)
@@ -138,9 +148,12 @@ class LeaderConfirmationActivity : AppCompatActivity() {
             return
         }
 
-        // choose destination based on status (reschedule -> reschedule detail, otherwise new request detail)
+        // choose destination based on reschedule flag/status or status text
         val lowercaseStatus = (req.status ?: "").lowercase()
-        val intent = if (lowercaseStatus.contains("resched") || lowercaseStatus.contains("reschedule")) {
+        val isRescheduleRelated = req.rescheduleRequested || !req.rescheduleStatus.isNullOrBlank() ||
+                !req.newDate.isNullOrBlank() || lowercaseStatus.contains("resched") || lowercaseStatus.contains("reschedule")
+
+        val intent = if (isRescheduleRelated) {
             Intent(this, LeaderRescheduleDetailActivity::class.java)
         } else {
             Intent(this, LeaderNewRequestDetailActivity::class.java)

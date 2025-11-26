@@ -12,6 +12,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import android.util.Log
 import android.net.Uri
 
+
 class TechnicianJobDetail : AppCompatActivity() {
 
     private val PICK_IMAGES_REQUEST = 101
@@ -60,9 +61,12 @@ class TechnicianJobDetail : AppCompatActivity() {
         recyclerPhotos.layoutManager = GridLayoutManager(this, 3)
 
         // Adapter uses a snapshot list for display only. We give it a new merged list every time.
-        photoAdapter = DocumentationPreviewAdapter(mutableListOf()) { docItem ->
-            handleDeleteDoc(docItem)
-        }
+        photoAdapter = DocumentationPreviewAdapter(
+            items = mutableListOf(),
+            onDelete = { docItem ->
+                handleDeleteDoc(docItem)
+            }
+        )
         recyclerPhotos.adapter = photoAdapter
 
         btnSelectImages.setOnClickListener { selectImages() }

@@ -13,6 +13,8 @@
         android:background="@drawable/input_box_login"
         android:paddingStart="20dp"
         android:textSize="17sp"
+        android:textColorHint="@color/Grey"
+        android:textColor="@color/black"
         android:layout_marginBottom="15dp"
         android:inputType="textPersonName" />
 
@@ -24,6 +26,8 @@
         android:background="@drawable/input_box_login"
         android:paddingStart="20dp"
         android:textSize="17sp"
+        android:textColorHint="@color/Grey"
+        android:textColor="@color/black"
         android:layout_marginBottom="15dp"
         android:inputType="text" />
 
@@ -41,6 +45,8 @@
             android:paddingStart="20dp"
             android:paddingEnd="50dp"
             android:textSize="17sp"
+            android:textColorHint="@color/Grey"
+            android:textColor="@color/black"
             android:inputType="textPassword" />
 
         <ImageView

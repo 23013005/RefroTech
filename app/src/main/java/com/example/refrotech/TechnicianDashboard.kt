@@ -3,6 +3,7 @@ package com.example.refrotech
 import android.content.Intent
 import android.os.Bundle
 import android.widget.LinearLayout
+import android.widget.FrameLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -31,6 +32,7 @@ class TechnicianDashboard : AppCompatActivity() {
     private lateinit var tvSelectedDate: TextView
     private lateinit var navHome: LinearLayout
     private lateinit var navHistory: LinearLayout
+    private lateinit var navLogout: FrameLayout
 
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
 
@@ -52,6 +54,8 @@ class TechnicianDashboard : AppCompatActivity() {
         tvSelectedDate = findViewById(R.id.tvSelectedDate)
         navHome = findViewById(R.id.navHome)
         navHistory = findViewById(R.id.navHistory)
+        navLogout = findViewById<FrameLayout>(R.id.navLogout)
+
 
         // Navigation
         navHome.setOnClickListener {
@@ -65,6 +69,9 @@ class TechnicianDashboard : AppCompatActivity() {
             i.putExtra("userId", technicianId)
             startActivity(i)
             finish()
+        }
+        navLogout.setOnClickListener {
+            LogoutHelper.logout(this)
         }
 
         // Calendar date selection
@@ -98,6 +105,9 @@ class TechnicianDashboard : AppCompatActivity() {
         }
 
         listenAssignedJobs()
+
+        // START in-app notifications listener for technician dashboard
+        InAppNotificationManager.startListening(this)
     }
 
     // ======================
@@ -180,5 +190,17 @@ class TechnicianDashboard : AppCompatActivity() {
         super.onStop()
         scheduleListener?.remove()
         requestListener?.remove()
+
+        // stop notification listener when leaving dashboard
+        InAppNotificationManager.stopListening()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        scheduleListener?.remove()
+        requestListener?.remove()
+
+        // ensure notification listener stopped
+        InAppNotificationManager.stopListening()
     }
 }

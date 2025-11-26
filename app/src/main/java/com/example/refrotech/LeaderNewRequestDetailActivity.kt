@@ -1,3 +1,4 @@
+// LeaderNewRequestDetailActivity.kt
 package com.example.refrotech
 
 import android.app.AlertDialog
@@ -8,6 +9,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView     // ADDED
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
 import java.text.SimpleDateFormat
@@ -21,8 +23,11 @@ class LeaderNewRequestDetailActivity : AppCompatActivity() {
     private lateinit var btnApprove: TextView
     private lateinit var btnReject: TextView
 
+    // MISSING VIEW — NOW ADDED
+    private lateinit var rvDetailUnits: RecyclerView
+
     private var requestId: String = ""
-    private var requestData: RequestData? = null   // FIXED: nullable to avoid crash
+    private var requestData: RequestData? = null
 
     private val allTechNames = mutableListOf<String>()
     private val allTechIds = mutableListOf<String>()
@@ -43,6 +48,10 @@ class LeaderNewRequestDetailActivity : AppCompatActivity() {
         tvDateTime = findViewById(R.id.tvDetailDateTime)
         btnApprove = findViewById(R.id.btnDetailApprove)
         btnReject = findViewById(R.id.btnDetailReject)
+
+        // BIND UNITS RECYCLER
+        rvDetailUnits = findViewById(R.id.rvDetailUnits)
+        rvDetailUnits.layoutManager = LinearLayoutManager(this)
 
         requestId = intent.getStringExtra("requestId") ?: ""
         if (requestId.isBlank()) {
@@ -87,6 +96,18 @@ class LeaderNewRequestDetailActivity : AppCompatActivity() {
 
                 selectedTechNames.clear()
                 selectedTechIds.clear()
+
+                // ***** ADD THIS: DISPLAY UNITS *****
+                val acUnits = req.units.map { m ->
+                    ACUnit(
+                        brand = m["brand"]?.toString() ?: "",
+                        pk = m["pk"]?.toString() ?: "",
+                        workType = m["workType"]?.toString() ?: ""
+                    )
+                }
+
+                rvDetailUnits.adapter = SimpleUnitsAdapter(acUnits)
+                // **************************************
             }
             .addOnFailureListener { e ->
                 Toast.makeText(this, "Failed to load request: ${e.message}", Toast.LENGTH_SHORT).show()
@@ -112,6 +133,7 @@ class LeaderNewRequestDetailActivity : AppCompatActivity() {
             }
             .addOnFailureListener {
                 Toast.makeText(this, "Gagal memuat teknisi", Toast.LENGTH_SHORT).show()
+                callback?.invoke()
             }
     }
 
@@ -119,48 +141,44 @@ class LeaderNewRequestDetailActivity : AppCompatActivity() {
         val req = requestData ?: return
         val requestDateStr = req.date ?: ""
 
-        val visibleNames = mutableListOf<String>()
-        val visibleIds = mutableListOf<String>()
-
-        for (i in allTechNames.indices) {
-            val techId = allTechIds[i]
-            val techName = allTechNames[i]
-            val docFields = allTechDocs[i]
-            val isUnavailable = technicianIsUnavailableForDate(docFields, requestDateStr)
-
-            if (!isUnavailable) {
-                visibleNames.add(techName)
-                visibleIds.add(techId)
-            }
+        val namesArray = allTechNames.toTypedArray()
+        val idsArray = allTechIds.toTypedArray()
+        val checked = BooleanArray(namesArray.size) { index ->
+            selectedTechIds.contains(idsArray[index])
         }
-
-        if (visibleNames.isEmpty()) {
-            Toast.makeText(this, "Tidak ada teknisi tersedia pada $requestDateStr", Toast.LENGTH_SHORT).show()
-            return
+        val availability = BooleanArray(namesArray.size) { index ->
+            val docFields = allTechDocs.getOrNull(index) ?: emptyMap<String, Any>()
+            technicianIsUnavailableForDate(docFields, requestDateStr)
         }
-
-        val selected = BooleanArray(visibleNames.size) { selectedTechNames.contains(visibleNames[it]) }
 
         AlertDialog.Builder(this)
-            .setTitle("Pilih Teknisi")
-            .setMultiChoiceItems(visibleNames.toTypedArray(), selected) { _, which, checked ->
-                val name = visibleNames[which]
-                val id = visibleIds[which]
-
-                if (checked) {
-                    if (!selectedTechNames.contains(name)) {
-                        selectedTechNames.add(name)
-                        selectedTechIds.add(id)
-                    }
+            .setTitle("Pilih Teknisi untuk tanggal $requestDateStr")
+            .setMultiChoiceItems(namesArray, checked) { dialogInterface, which, isChecked ->
+                if (availability[which]) {
+                    (dialogInterface as? AlertDialog)?.listView?.setItemChecked(which, false)
+                    checked[which] = false
+                    Toast.makeText(this, "${namesArray[which]} is unavailable on $requestDateStr", Toast.LENGTH_SHORT).show()
                 } else {
-                    selectedTechNames.remove(name)
-                    selectedTechIds.remove(id)
+                    checked[which] = isChecked
                 }
             }
             .setPositiveButton("OK") { d, _ ->
-                if (selectedTechIds.isEmpty()) {
+                val selectedIds = mutableListOf<String>()
+                val selectedNames = mutableListOf<String>()
+                for (i in checked.indices) {
+                    if (checked[i]) {
+                        selectedIds.add(idsArray[i])
+                        selectedNames.add(namesArray[i])
+                    }
+                }
+
+                if (selectedIds.isEmpty()) {
                     Toast.makeText(this, "Pilih teknisi dahulu", Toast.LENGTH_SHORT).show()
                 } else {
+                    selectedTechIds.clear()
+                    selectedTechNames.clear()
+                    selectedTechIds.addAll(selectedIds)
+                    selectedTechNames.addAll(selectedNames)
                     confirmApprove()
                 }
                 d.dismiss()
@@ -170,11 +188,12 @@ class LeaderNewRequestDetailActivity : AppCompatActivity() {
     }
 
     private fun confirmApprove() {
-        val updates = mapOf(
-            "status" to "confirmed",                       // FIXED
+        val updates = hashMapOf<String, Any>(
+            "status" to "confirmed",
             "technician" to selectedTechNames,
             "assignedTechnicianIds" to selectedTechIds,
             "technicianIds" to selectedTechIds,
+            "technicians" to selectedTechNames,
             "approvedAt" to Timestamp.now()
         )
 
@@ -211,15 +230,22 @@ class LeaderNewRequestDetailActivity : AppCompatActivity() {
     }
 
     private fun technicianIsUnavailableForDate(docFields: Map<String, Any>, targetDateStr: String): Boolean {
-        val from = docFields["unavailableFrom"]?.toString() ?: return false
-        val to = docFields["unavailableTo"]?.toString()
+        val rawFrom = docFields["unavailableFrom"]?.toString() ?: return false
+        val rawTo = docFields["unavailableTo"]?.toString()
 
-        val target = try { dateFormat.parse(targetDateStr) } catch (e: Exception) { return false }
-        val start = try { dateFormat.parse(from) } catch (e: Exception) { return false }
+        if (rawFrom.isBlank() || rawFrom == "null") return false
 
-        if (to.isNullOrBlank()) return !target.before(start)
+        val df = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
+        val target = try { df.parse(targetDateStr) } catch (e: Exception) { return false }
+        val start = try { df.parse(rawFrom) } catch (e: Exception) { return false }
 
-        val end = try { dateFormat.parse(to) } catch (e: Exception) { return false }
+        val end = if (rawTo != null && rawTo != "null" && rawTo.isNotBlank()) {
+            try { df.parse(rawTo) } catch (e: Exception) { null }
+        } else null
+
+        if (end == null) {
+            return !target.before(start)
+        }
         return !target.before(start) && !target.after(end)
     }
 }

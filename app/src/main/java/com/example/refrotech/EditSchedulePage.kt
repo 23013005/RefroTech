@@ -8,6 +8,7 @@ import android.view.View
 import android.widget.*
 import android.view.ViewGroup
 import androidx.appcompat.app.AppCompatActivity
+import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.firebase.Timestamp
@@ -18,6 +19,9 @@ import java.util.*
 /**
  * EditSchedulePage — parity with AddSchedulePage.
  * Loads and saves units, supports add/edit/delete inside dialog.
+ *
+ * Also loads documentation (read-only) for both schedule documents and confirmed requests shown as schedules.
+ * Leaders can update status from this page (same transitions available to technicians).
  */
 class EditSchedulePage : AppCompatActivity() {
 
@@ -25,11 +29,24 @@ class EditSchedulePage : AppCompatActivity() {
     private lateinit var etTechnician: EditText
     private lateinit var etCustomer: EditText
     private lateinit var etAddress: EditText
+    // Rating display
+    private lateinit var ratingContainer: LinearLayout
+    private lateinit var ratingBarLeader: RatingBar
+    private lateinit var tvRatingComment: TextView
+    private lateinit var tvRatingDate: TextView
+
 
     private lateinit var recyclerUnits: RecyclerView
     private lateinit var btnAddUnit: FrameLayout
     private lateinit var btnSave: FrameLayout
     private lateinit var btnDelete: FrameLayout
+
+    // NEW: documentation viewer (read-only)
+    private lateinit var recyclerDocs: androidx.recyclerview.widget.RecyclerView
+    private lateinit var docsAdapter: DocumentationPreviewAdapter
+
+    // NEW: status spinner for leader to change work status
+    private lateinit var spinnerStatus: Spinner
 
     private val db: FirebaseFirestore = FirebaseFirestore.getInstance()
     private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
@@ -47,6 +64,7 @@ class EditSchedulePage : AppCompatActivity() {
 
     private var scheduleId: String = ""
     private var scheduleDate: String = ""
+    private var origin: String = "schedule" // "schedule" or "request"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -60,18 +78,34 @@ class EditSchedulePage : AppCompatActivity() {
         btnAddUnit = findViewById(R.id.btnAddUnit)
         btnSave = findViewById(R.id.btnSave)
         btnDelete = findViewById(R.id.btnDelete)
+        ratingContainer = findViewById(R.id.ratingContainer)
+        ratingBarLeader = findViewById(R.id.ratingBarLeader)
+        tvRatingComment = findViewById(R.id.tvRatingComment)
+        tvRatingDate = findViewById(R.id.tvRatingDate)
 
+
+        // NEW views
+        recyclerDocs = findViewById(R.id.recyclerDocs)
+        spinnerStatus = findViewById(R.id.spinnerStatus)
+
+        // units setup
         unitsAdapter = ACUnitAdapter(units) { index ->
             showAddEditUnitDialog(index)
         }
         recyclerUnits.layoutManager = LinearLayoutManager(this)
         recyclerUnits.adapter = unitsAdapter
 
+        // docs setup: read-only, so pass empty onDelete and use mutable list internally
+        docsAdapter = DocumentationPreviewAdapter(mutableListOf(), onDelete = null)
+        recyclerDocs.layoutManager = GridLayoutManager(this, 3)
+        recyclerDocs.adapter = docsAdapter
+
         etTime.setOnClickListener { showTimePicker() }
         etTechnician.setOnClickListener { loadAllTechnicians { showTechnicianDialog() } }
 
         scheduleId = intent.getStringExtra("scheduleId") ?: ""
         scheduleDate = intent.getStringExtra("date") ?: dateFormat.format(Date())
+        origin = intent.getStringExtra("origin") ?: "schedule"
 
         loadAllTechnicians()
         if (scheduleId.isNotBlank()) loadSchedule()
@@ -79,6 +113,18 @@ class EditSchedulePage : AppCompatActivity() {
         btnAddUnit.setOnClickListener { showAddEditUnitDialog(null) }
         btnSave.setOnClickListener { updateSchedule() }
         btnDelete.setOnClickListener { confirmDeleteSchedule() }
+
+        setupStatusSpinner()
+    }
+
+    private fun setupStatusSpinner() {
+        // IMPORTANT: remove "pending" as an option for the leader.
+        // We add an explicit placeholder at index 0 which means "no change".
+        // Index 1..N represent valid status transitions the leader can select.
+        val statuses = listOf("-- Change status --", "Confirmed", "On-Progress", "Completed")
+        val adapterSpinner = ArrayAdapter(this, android.R.layout.simple_spinner_item, statuses)
+        adapterSpinner.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        spinnerStatus.adapter = adapterSpinner
     }
 
     private fun showTimePicker() {
@@ -239,15 +285,57 @@ class EditSchedulePage : AppCompatActivity() {
     private fun loadSchedule() {
         if (scheduleId.isBlank()) return
 
-        db.collection(FirestoreFields.SCHEDULES).document(scheduleId)
+        // If origin == "request" then the document is in requests collection; otherwise in schedules.
+        val col = if (origin == "request") FirestoreFields.REQUESTS else FirestoreFields.SCHEDULES
+
+        db.collection(col).document(scheduleId)
             .get()
             .addOnSuccessListener { doc ->
                 if (!doc.exists()) return@addOnSuccessListener
 
-                etCustomer.setText(doc.getString("customerName") ?: "")
+                etCustomer.setText(doc.getString("customerName") ?: doc.getString("name") ?: "")
                 etAddress.setText(doc.getString("address") ?: "")
                 etTime.setText(doc.getString("time") ?: "")
                 scheduleDate = doc.getString("date") ?: scheduleDate
+                // ==== LOAD RATING ====
+                val ratingValue = doc.getLong("rating")
+                val ratingComment = doc.getString("ratingComment")
+                val ratingTimestamp = doc.getTimestamp("ratedAt")?.toDate()
+
+                if (ratingValue != null) {
+                    ratingContainer.visibility = View.VISIBLE
+                    ratingBarLeader.rating = ratingValue.toFloat()
+
+                    tvRatingComment.text =
+                        if (!ratingComment.isNullOrBlank()) "Comment: $ratingComment"
+                        else "Comment: (none)"
+
+                    if (ratingTimestamp != null) {
+                        val sdf = java.text.SimpleDateFormat("dd MMM yyyy HH:mm", java.util.Locale.getDefault())
+                        tvRatingDate.text = "Rated on: ${sdf.format(ratingTimestamp)}"
+                    } else {
+                        tvRatingDate.text = ""
+                    }
+
+                } else {
+                    ratingContainer.visibility = View.GONE
+                }
+                // status: find normalized status and set spinner position
+                val computedStatus = if (origin == "schedule") {
+                    JobNormalizer.scheduleDocToSchedule(doc).normalizedStatus
+                } else {
+                    JobNormalizer.requestDocToSchedule(doc).normalizedStatus
+                }
+
+                // spinner entries: index 0 -> placeholder (no change)
+                // 1 -> confirmed, 2 -> on-progress, 3 -> completed
+                val spinnerIndex = when (computedStatus) {
+                    "confirmed" -> 1
+                    "on-progress" -> 2
+                    "completed" -> 3
+                    else -> 0 // pending or unknown -> placeholder "no change"
+                }
+                spinnerStatus.setSelection(spinnerIndex, false)
 
                 // technicians
                 selectedTechNames.clear()
@@ -272,9 +360,34 @@ class EditSchedulePage : AppCompatActivity() {
                     }
                 }
                 unitsAdapter.notifyDataSetChanged()
+
+                // documentation: docs live underneath the same parent (requests/<id>/documentation or schedules/<id>/documentation)
+                loadDocumentationForDocument(col, scheduleId)
             }
             .addOnFailureListener { e ->
                 Toast.makeText(this, "Gagal memuat jadwal: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+    }
+
+    private fun loadDocumentationForDocument(parentCollection: String, docId: String) {
+        db.collection(parentCollection).document(docId).collection("documentation")
+            .get()
+            .addOnSuccessListener { snap ->
+                val docs = snap.documents.map { d ->
+                    // the stored fields could be base64 or filename; we read what exists
+                    DocItem(
+                        id = d.id,
+                        base64 = d.getString("base64"),
+                        fileName = d.getString("fileName"),
+                        localUri = null
+                    )
+                }
+                // Pass docs to adapter (read-only)
+                docsAdapter.updateItems(docs)
+            }
+            .addOnFailureListener { e ->
+                // swallow failure but log
+                Toast.makeText(this, "Failed to load documentation: ${e.message}", Toast.LENGTH_SHORT).show()
             }
     }
 
@@ -294,35 +407,20 @@ class EditSchedulePage : AppCompatActivity() {
             return
         }
 
-        if (selectedTechIds.isNotEmpty()) {
-            db.collection(FirestoreFields.USERS)
-                .whereIn("__name__", selectedTechIds)
-                .get()
-                .addOnSuccessListener { snap ->
-                    val nowUnavailable = mutableListOf<String>()
-                    for (d in snap.documents) {
-                        val doc = d.data ?: continue
-                        if (technicianIsUnavailableForDate(doc, scheduleDate)) {
-                            nowUnavailable.add(d.getString("name") ?: d.id)
-                        }
-                    }
-                    if (nowUnavailable.isNotEmpty()) {
-                        Toast.makeText(this, "Teknisi tidak tersedia pada tanggal $scheduleDate: ${nowUnavailable.joinToString(", ")}", Toast.LENGTH_LONG).show()
-                        return@addOnSuccessListener
-                    }
-                    performSave(customerName, address, time)
-                }
-                .addOnFailureListener { e ->
-                    Toast.makeText(this, "Gagal memeriksa teknisi: ${e.message}", Toast.LENGTH_SHORT).show()
-                }
-        } else {
-            performSave(customerName, address, time)
-        }
-    }
-
-    private fun performSave(customerName: String, address: String, time: String) {
+        // prepare units list
         val unitsList = units.map { u -> mapOf("brand" to u.brand, "pk" to u.pk, "workType" to u.workType) }
 
+        // Evaluate chosen status from spinner
+        // NOTE: we removed "pending" option. index 0 = placeholder = "no change"
+        // index 1 -> confirmed, 2 -> on-progress, 3 -> completed
+        val chosenStatus: String? = when (spinnerStatus.selectedItemPosition) {
+            1 -> "confirmed"
+            2 -> "on-progress"
+            3 -> "completed"
+            else -> null // placeholder chosen -> DO NOT CHANGE status
+        }
+
+        // Build updates for common fields
         val updates = hashMapOf<String, Any?>(
             "customerName" to customerName,
             "address" to address,
@@ -334,7 +432,21 @@ class EditSchedulePage : AppCompatActivity() {
             "updatedAt" to Timestamp.now()
         )
 
-        db.collection(FirestoreFields.SCHEDULES).document(scheduleId)
+        // Add status update to the appropriate field depending on the origin
+        if (chosenStatus != null) {
+            if (origin == "schedule") {
+                updates["workStatus"] = chosenStatus
+            } else {
+                // origin == "request":
+                // We want leader to be able to transition jobStatus (technician progress) as well as leave 'status' (approval).
+                // To avoid accidentally demoting leader approval, we update jobStatus for technician progression.
+                updates["jobStatus"] = chosenStatus
+            }
+        } // else: chosenStatus == null -> leave existing status untouched
+
+        val collectionName = if (origin == "schedule") FirestoreFields.SCHEDULES else FirestoreFields.REQUESTS
+
+        db.collection(collectionName).document(scheduleId)
             .update(updates)
             .addOnSuccessListener {
                 Toast.makeText(this, "Jadwal diperbarui", Toast.LENGTH_SHORT).show()
@@ -351,7 +463,8 @@ class EditSchedulePage : AppCompatActivity() {
             .setMessage("Apakah anda yakin ingin menghapus jadwal ini?")
             .setPositiveButton("Hapus") { _, _ ->
                 if (scheduleId.isBlank()) return@setPositiveButton
-                db.collection(FirestoreFields.SCHEDULES).document(scheduleId)
+                val collectionName = if (origin == "schedule") FirestoreFields.SCHEDULES else FirestoreFields.REQUESTS
+                db.collection(collectionName).document(scheduleId)
                     .delete()
                     .addOnSuccessListener {
                         Toast.makeText(this, "Jadwal dihapus", Toast.LENGTH_SHORT).show()

@@ -21,6 +21,7 @@ class LeaderDashboard : AppCompatActivity() {
     private lateinit var tvSelectedDate: TextView
     private lateinit var recyclerSchedules: ExpandedRecyclerView
     private lateinit var btnAddSchedule: FrameLayout
+    private lateinit var navLogout: FrameLayout
 
     private lateinit var adapter: ScheduleAdapter
 
@@ -37,6 +38,7 @@ class LeaderDashboard : AppCompatActivity() {
         tvSelectedDate = findViewById(R.id.tvSelectedDate)
         recyclerSchedules = findViewById(R.id.recyclerSchedules)
         btnAddSchedule = findViewById(R.id.btnAddSchedule)
+        navLogout = findViewById< FrameLayout>(R.id.navLogout)
 
         // ===================== SETUP RECYCLER VIEW =====================
         recyclerSchedules.layoutManager = LinearLayoutManager(this)
@@ -63,13 +65,23 @@ class LeaderDashboard : AppCompatActivity() {
             startActivity(intent)
         }
 
+        navLogout.setOnClickListener {
+            LogoutHelper.logout(this)
+        }
+
+
         setupBottomNav()
+
+        // START in-app notifications listener for leader dashboard
+        InAppNotificationManager.startListening(this)
     }
 
     /**
      * Refresh displayed items for a single date by merging:
      *  - schedules where date == selectedDate
-     *  - requests where date == selectedDate and status == "confirmed"
+     *  - requests where date == selectedDate and status in ("confirmed","assigned")
+     *
+     * Important: we call JobNormalizer to get canonical status. We do NOT change route/origin logic.
      */
     private fun refreshForDate(date: String) {
         scheduleListener?.remove()
@@ -87,10 +99,11 @@ class LeaderDashboard : AppCompatActivity() {
                 mergeSchedulesAndConfirmedRequestsForDate(date)
             }
 
-        // Listen confirmed requests for this date
+        // Listen confirmed/assigned requests for this date
+        // NOTE: use whereIn to listen for more than one status at once
         requestListener = db.collection(FirestoreFields.REQUESTS)
             .whereEqualTo("date", date)
-            .whereEqualTo("status", "confirmed")
+            .whereIn("status", listOf("confirmed", "assigned"))
             .addSnapshotListener { _, _ ->
                 // when requests change, re-merge lists for that date
                 mergeSchedulesAndConfirmedRequestsForDate(date)
@@ -109,63 +122,34 @@ class LeaderDashboard : AppCompatActivity() {
             .get()
             .addOnSuccessListener { schSnap ->
                 for (d in schSnap.documents) {
-                    val (names, ids) = try {
-                        FirestoreNormalizer.normalizeTechnicians(d)
+                    // normalize and convert via JobNormalizer
+                    try {
+                        val sch = JobNormalizer.scheduleDocToSchedule(d)
+                        merged.add(sch)
                     } catch (_: Exception) {
-                        Pair(emptyList<String>(), emptyList<String>())
+                        // ignore problematic doc but continue processing
                     }
-
-                    merged.add(
-                        Schedule(
-                            scheduleId = d.id,
-                            customerName = d.getString("customerName") ?: "",
-                            date = d.getString("date") ?: "",
-                            time = d.getString("time") ?: "",
-                            technicians = names,
-                            technicianIds = ids,
-                            assignedTechnicianIds = d.get("assignedTechnicianIds") as? List<String> ?: ids,
-                            address = d.getString("address") ?: "",
-                            origin = d.getString("origin") ?: "schedule",
-                            requestId = d.getString("requestId") ?: ""
-                        )
-                    )
                 }
 
-                // fetch confirmed requests for date
+                // fetch confirmed/assigned requests for date (leader-confirmed or assigned to techs)
                 db.collection(FirestoreFields.REQUESTS)
                     .whereEqualTo("date", date)
-                    .whereEqualTo("status", "confirmed")
+                    .whereIn("status", listOf("confirmed", "assigned"))
                     .get()
                     .addOnSuccessListener { reqSnap ->
                         for (r in reqSnap.documents) {
-                            // name may be stored in "customerName" or "name"
-                            val custName = r.getString("customerName") ?: r.getString("name") ?: ""
-                            val (names, ids) = try {
-                                FirestoreNormalizer.normalizeTechnicians(r)
+                            try {
+                                val reqAsSchedule = JobNormalizer.requestDocToSchedule(r)
+                                merged.add(reqAsSchedule)
                             } catch (_: Exception) {
-                                Pair(emptyList<String>(), emptyList<String>())
+                                // ignore
                             }
-
-                            // convert request -> Schedule-like item for display
-                            merged.add(
-                                Schedule(
-                                    scheduleId = r.id,
-                                    customerName = custName,
-                                    date = r.getString("date") ?: "",
-                                    time = r.getString("time") ?: "",
-                                    technicians = names,
-                                    technicianIds = ids,
-                                    assignedTechnicianIds = r.get("assignedTechnicianIds") as? List<String> ?: (r.get("technicianIds") as? List<String> ?: ids),
-                                    address = r.getString("address") ?: "",
-                                    origin = "request",
-                                    requestId = r.id
-                                )
-                            )
                         }
 
                         // sort lexicographically by yyyy-MM-dd and HH:mm
                         merged.sortWith(compareBy({ it.date }, { it.time }))
 
+                        // update adapter (adapter shows normalizedStatus)
                         adapter.updateData(merged)
                     }
                     .addOnFailureListener { e ->
@@ -180,6 +164,8 @@ class LeaderDashboard : AppCompatActivity() {
     // ===================== DATE FORMATTER =====================
     private fun formatDate(day: CalendarDay): String {
         val y = day.year
+        // material-calendarview months are 1-12 (but earlier code used month directly),
+        // keep behavior consistent with your previous implementation (month as returned)
         val m = String.format("%02d", day.month)
         val d = String.format("%02d", day.day)
         return "$y-$m-$d"
@@ -204,5 +190,17 @@ class LeaderDashboard : AppCompatActivity() {
         super.onStop()
         scheduleListener?.remove()
         requestListener?.remove()
+
+        // stop notification listener when dashboard is not visible
+        InAppNotificationManager.stopListening()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        scheduleListener?.remove()
+        requestListener?.remove()
+
+        // ensure notification listener stopped
+        InAppNotificationManager.stopListening()
     }
 }

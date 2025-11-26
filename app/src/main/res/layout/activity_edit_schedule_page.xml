@@ -4,7 +4,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:fillViewport="true"
-    android:background="@drawable/bglogin_pelanggan"
+    android:background="@drawable/bg_lobby_pemimpin"
     tools:context=".EditSchedulePage">
 
     <LinearLayout
@@ -98,6 +98,17 @@
             android:textColor="@color/black"
             android:textSize="16sp" />
 
+        <!-- STATUS SPINNER -->
+        <Spinner
+            android:id="@+id/spinnerStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="40dp"
+            android:layout_marginTop="16dp"
+
+            android:textColor="@color/black"
+            android:background="@drawable/input_box_login" />
+
         <!-- UNITS LABEL -->
         <TextView
             android:id="@+id/tvUnitsLabel"
@@ -120,7 +131,10 @@
             android:nestedScrollingEnabled="false"
             android:overScrollMode="never" />
 
-        <!-- ADD UNIT BUTTON -->
+        <!-- ADD UNIT -->
+
+
+
         <FrameLayout
             android:id="@+id/btnAddUnit"
             android:layout_width="wrap_content"
@@ -141,6 +155,78 @@
                 android:fontFamily="@font/inter_bold" />
         </FrameLayout>
 
+        <!-- DOCUMENTATION LABEL -->
+        <TextView
+            android:id="@+id/tvDocsLabel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Documentation"
+            android:textSize="18sp"
+            android:textColor="@color/black"
+            android:fontFamily="@font/inter_bold"
+            android:layout_marginTop="20dp"
+            android:layout_marginStart="40dp" />
+
+        <!-- DOCUMENTATION GRID -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/recyclerDocs"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="40dp"
+            android:layout_marginTop="12dp"
+            android:nestedScrollingEnabled="false"
+            android:overScrollMode="never"
+            android:descendantFocusability="blocksDescendants" />
+
+        <!-- RATING DISPLAY (LEADER ONLY) -->
+        <LinearLayout
+            android:id="@+id/ratingContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginHorizontal="40dp"
+            android:layout_marginTop="20dp"
+            android:padding="12dp"
+            android:background="@drawable/input_box_login"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/tvRatingTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Customer Rating"
+                android:textColor="@color/black"
+                android:textStyle="bold"
+                android:textSize="18sp" />
+
+            <RatingBar
+                android:id="@+id/ratingBarLeader"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:numStars="5"
+                android:stepSize="1"
+                android:isIndicator="true"
+                android:layout_marginTop="8dp" />
+
+            <TextView
+                android:id="@+id/tvRatingComment"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="@color/black"
+                android:textSize="14sp"
+                android:layout_marginTop="8dp" />
+
+            <TextView
+                android:id="@+id/tvRatingDate"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="@color/black"
+                android:textSize="12sp"
+                android:layout_marginTop="6dp" />
+
+        </LinearLayout>
+
+
         <!-- BUTTONS -->
         <LinearLayout
             android:layout_width="match_parent"
@@ -150,7 +236,6 @@
             android:layout_marginTop="30dp"
             android:paddingHorizontal="40dp">
 
-            <!-- SAVE -->
             <FrameLayout
                 android:id="@+id/btnSave"
                 android:layout_width="wrap_content"
@@ -160,7 +245,6 @@
                 android:paddingVertical="14dp"
                 android:layout_marginEnd="20dp" />
 
-            <!-- DELETE -->
             <FrameLayout
                 android:id="@+id/btnDelete"
                 android:layout_width="wrap_content"
