@@ -68,26 +68,26 @@
                 android:id="@+id/etName"
                 android:textColorHint="@color/Grey"
                 style="@style/InputFieldStyle"
-                android:hint="Nama:" />
+                android:hint="Nama" />
 
             <EditText
                 android:id="@+id/etAddress"
                 android:textColorHint="@color/Grey"
                 style="@style/InputFieldStyle"
-                android:hint="Alamat:" />
+                android:hint="Alamat" />
 
             <EditText
                 android:id="@+id/etDate"
                 android:textColorHint="@color/Grey"
                 style="@style/InputFieldStyle"
-                android:hint="Tanggal:"
+                android:hint="Tanggal"
                 android:focusable="false" />
 
             <EditText
                 android:id="@+id/etTime"
                 android:textColorHint="@color/Grey"
                 style="@style/InputFieldStyle"
-                android:hint="Jam:"
+                android:hint="Jam"
                 android:focusable="false" />
 
             <!-- ===== LINK MAPS WITH ICON ===== -->
@@ -123,7 +123,7 @@
                 android:id="@+id/etPhone"
                 android:textColorHint="@color/Grey"
                 style="@style/InputFieldStyle"
-                android:hint="Nomor Telp:" />
+                android:hint="Nomor Telp" />
 
             <!-- ===== AC UNIT SECTION ===== -->
             <TextView
