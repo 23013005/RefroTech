@@ -34,7 +34,7 @@ class EditSchedulePage : AppCompatActivity() {
     private lateinit var ratingBarLeader: RatingBar
     private lateinit var tvRatingComment: TextView
     private lateinit var tvRatingDate: TextView
-
+    private lateinit var btnWorkReport: FrameLayout
 
     private lateinit var recyclerUnits: RecyclerView
     private lateinit var btnAddUnit: FrameLayout
@@ -82,7 +82,7 @@ class EditSchedulePage : AppCompatActivity() {
         ratingBarLeader = findViewById(R.id.ratingBarLeader)
         tvRatingComment = findViewById(R.id.tvRatingComment)
         tvRatingDate = findViewById(R.id.tvRatingDate)
-
+        btnWorkReport = findViewById<FrameLayout>(R.id.btnWorkReport)
 
         // NEW views
         recyclerDocs = findViewById(R.id.recyclerDocs)
@@ -115,6 +115,18 @@ class EditSchedulePage : AppCompatActivity() {
         btnDelete.setOnClickListener { confirmDeleteSchedule() }
 
         setupStatusSpinner()
+
+        // The Work Report button should be hidden by default; loadSchedule will show it when appropriate
+        btnWorkReport.visibility = View.GONE
+
+        // Open WorkReportActivity when clicked — will use origin + id
+        btnWorkReport.setOnClickListener {
+            if (scheduleId.isBlank()) return@setOnClickListener
+            val intent = android.content.Intent(this, WorkReportActivity::class.java)
+            intent.putExtra("origin", origin)
+            intent.putExtra("id", scheduleId)
+            startActivity(intent)
+        }
     }
 
     private fun setupStatusSpinner() {
@@ -336,6 +348,9 @@ class EditSchedulePage : AppCompatActivity() {
                     else -> 0 // pending or unknown -> placeholder "no change"
                 }
                 spinnerStatus.setSelection(spinnerIndex, false)
+
+                // Show Work Report button only when status is completed
+                btnWorkReport.visibility = if (computedStatus == "completed") View.VISIBLE else View.GONE
 
                 // technicians
                 selectedTechNames.clear()

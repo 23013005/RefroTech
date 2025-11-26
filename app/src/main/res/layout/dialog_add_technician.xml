@@ -10,7 +10,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:hint="Nama Teknisi"
-        android:textColorHint="@color/black"
+
         android:background="@drawable/input_box_login"
         android:paddingStart="20dp"
         android:textSize="17sp"
@@ -24,7 +24,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:hint="Username Teknisi"
-        android:textColorHint="@color/black"
+
         android:background="@drawable/input_box_login"
         android:paddingStart="20dp"
         android:textSize="17sp"
@@ -43,7 +43,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:hint="Password Teknisi"
-            android:textColorHint="@color/black"
+
             android:background="@drawable/input_box_login"
             android:paddingStart="20dp"
             android:paddingEnd="50dp"

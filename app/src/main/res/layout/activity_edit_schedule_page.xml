@@ -253,8 +253,25 @@
                 android:paddingHorizontal="50dp"
                 android:paddingVertical="14dp"
                 android:layout_marginStart="20dp" />
-
         </LinearLayout>
+        <FrameLayout
+            android:id="@+id/btnWorkReport"
+            android:layout_width="match_parent"
+            android:layout_height="55dp"
+            android:layout_marginTop="20dp"
+            android:layout_marginHorizontal="83dp"
+            android:background="@drawable/login_button"
+            android:visibility="gone">
 
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Laporan Pekerjaan"
+                android:paddingBottom="5dp"
+                android:textSize="16sp"
+                android:textColor="@color/black"
+                android:fontFamily="@font/inter_bold"
+                android:layout_gravity="center"/>
+        </FrameLayout>
     </LinearLayout>
 </ScrollView>

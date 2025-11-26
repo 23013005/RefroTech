@@ -46,6 +46,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Customer Name"
+                    android:textColor="@color/black"
                     android:textSize="18sp"
                     android:textStyle="bold" />
 
@@ -54,6 +55,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Phone"
+                    android:textColor="@color/black"
                     android:layout_marginTop="4dp" />
 
                 <TextView
@@ -61,6 +63,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Address"
+                    android:textColor="@color/black"
                     android:layout_marginTop="4dp" />
 
                 <!-- DATE + MAP IN SAME ROW -->
@@ -77,6 +80,7 @@
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:text="Date • Time"
+                        android:textColor="@color/black"
                         android:textSize="16sp" />
 
                     <ImageView
@@ -96,6 +100,7 @@
                 android:layout_height="wrap_content"
                 android:text="Units"
                 android:textStyle="bold"
+                android:textColor="@color/black"
                 android:textSize="18sp"
                 android:layout_marginTop="18dp" />
 

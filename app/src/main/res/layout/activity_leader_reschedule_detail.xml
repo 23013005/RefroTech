@@ -43,6 +43,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:id="@+id/tvDetailName"
+                    android:textColor="@color/black"
                     android:text="Customer Name"
                     android:textStyle="bold"
                     android:textSize="18sp"/>
@@ -51,6 +52,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:id="@+id/tvDetailPhone"
+                    android:textColor="@color/black"
                     android:text="Phone"
                     android:layout_marginTop="4dp" />
 
@@ -58,6 +60,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:id="@+id/tvDetailAddress"
+                    android:textColor="@color/black"
                     android:text="Address"
                     android:layout_marginTop="4dp" />
 
@@ -79,20 +82,20 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="Jadwal Sebelum"
-                            android:textStyle="bold" />
+                            android:textColor="@color/black"                            android:textStyle="bold" />
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:id="@+id/tvOldDate"
-                            android:text="Old Date"
+                            android:textColor="@color/black"                            android:text="Old Date"
                             android:layout_marginTop="4dp" />
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:id="@+id/tvOldTime"
-                            android:text="Old Time" />
+                            android:textColor="@color/black"                            android:text="Old Time" />
                     </LinearLayout>
 
                     <LinearLayout
@@ -106,6 +109,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="New Schedule"
+                            android:textColor="@color/black"
                             android:textStyle="bold" />
 
                         <LinearLayout
@@ -125,12 +129,14 @@
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:id="@+id/tvNewDate"
+                                    android:textColor="@color/black"
                                     android:text="New Date" />
 
                                 <TextView
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
                                     android:id="@+id/tvNewTime"
+                                    android:textColor="@color/black"
                                     android:text="New Time" />
                             </LinearLayout>
 

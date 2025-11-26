@@ -23,6 +23,9 @@ class LeaderNewRequestDetailActivity : AppCompatActivity() {
     private lateinit var btnApprove: TextView
     private lateinit var btnReject: TextView
 
+    // ADDED
+    private lateinit var tvPhone: TextView
+
     // MISSING VIEW — NOW ADDED
     private lateinit var rvDetailUnits: RecyclerView
 
@@ -48,6 +51,9 @@ class LeaderNewRequestDetailActivity : AppCompatActivity() {
         tvDateTime = findViewById(R.id.tvDetailDateTime)
         btnApprove = findViewById(R.id.btnDetailApprove)
         btnReject = findViewById(R.id.btnDetailReject)
+
+        // ADDED BINDING
+        tvPhone = findViewById(R.id.tvDetailPhone)
 
         // BIND UNITS RECYCLER
         rvDetailUnits = findViewById(R.id.rvDetailUnits)
@@ -94,10 +100,13 @@ class LeaderNewRequestDetailActivity : AppCompatActivity() {
                 tvAddress.text = req.address
                 tvDateTime.text = "${req.date} • ${req.time}"
 
+                // ADDED PHONE DISPLAY
+                tvPhone.text = req.phone ?: ""
+
                 selectedTechNames.clear()
                 selectedTechIds.clear()
 
-                // ***** ADD THIS: DISPLAY UNITS *****
+                // ***** DISPLAY UNITS *****
                 val acUnits = req.units.map { m ->
                     ACUnit(
                         brand = m["brand"]?.toString() ?: "",
