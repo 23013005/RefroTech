@@ -56,7 +56,7 @@
             android:layout_height="wrap_content"
             android:layout_marginEnd="4dp"
             android:background="@drawable/login_button"
-            android:backgroundTint="#A0FF95"
+            android:backgroundTint="#EA3CE055"
             android:paddingVertical="6dp">
 
             <TextView
@@ -76,7 +76,7 @@
             android:layout_width="70dp"
             android:layout_height="wrap_content"
             android:background="@drawable/login_button"
-            android:backgroundTint="#FF8C8C"
+            android:backgroundTint="#FF4D93"
             android:paddingVertical="6dp">
 
             <TextView

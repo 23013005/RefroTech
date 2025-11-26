@@ -11,6 +11,7 @@
         android:id="@+id/tvUnitBrand"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:textColor="@color/black"
         android:text="Merek: Panasonic" />
 
     <TextView
@@ -18,12 +19,14 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="PK: 1.5PK"
+        android:textColor="@color/black"
         android:layout_marginTop="2dp"/>
 
     <TextView
         android:id="@+id/tvUnitWork"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:textColor="@color/black"
         android:text="Jenis Pekerjaan: Service"
         android:layout_marginTop="2dp"/>
 
