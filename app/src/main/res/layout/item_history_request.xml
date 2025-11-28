@@ -8,7 +8,7 @@
     android:background="@drawable/dialog_background"
     android:layout_marginBottom="10dp">
 
-    <!-- Header row: customer name + status -->
+    <!-- Header row -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -30,7 +30,6 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Pending"
-            android:layout_gravity="center"
             android:textStyle="bold"
             android:textSize="12sp"
             android:padding="15dp"
@@ -62,8 +61,8 @@
 
         <TextView
             android:id="@+id/tvHistTime"
-            android:layout_marginStart="12dp"
             android:layout_width="wrap_content"
+            android:layout_marginStart="12dp"
             android:layout_height="wrap_content"
             android:text="10:00" />
     </LinearLayout>
@@ -138,10 +137,7 @@
         </FrameLayout>
     </LinearLayout>
 
-    <!-- ====================================================== -->
-    <!-- NEW FULL-WIDTH "RATE US!" BUTTON (Option C)            -->
-    <!-- Only displayed for COMPLETED work (handled in adapter) -->
-    <!-- ====================================================== -->
+    <!-- Existing RATE button -->
     <FrameLayout
         android:id="@+id/btnRateUs"
         android:layout_width="match_parent"

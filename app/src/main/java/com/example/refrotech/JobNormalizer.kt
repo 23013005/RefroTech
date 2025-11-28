@@ -96,6 +96,8 @@ object JobNormalizer {
         // documentation: sometimes structured as subcollection; when stored inline as list, accept it
         val documentation = (doc.get(FirestoreFields.FIELD_DOCUMENTATION) as? List<*>)?.map { it.toString() } ?: emptyList()
 
+        val unitsList = doc.get("units") as? List<Map<String, Any>> ?: emptyList()
+
         val schedule = Schedule(
             scheduleId = requestId,
             customerName = customerName,
@@ -108,7 +110,8 @@ object JobNormalizer {
             origin = origin,
             requestId = requestId,
             workStatus = workStatusRaw,
-            documentation = documentation
+            documentation = documentation,
+            units = unitsList
         )
 
         schedule.normalizedStatus = normalizeStatusRaw(workStatusRaw)

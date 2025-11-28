@@ -277,7 +277,7 @@ class CustomerHistory : AppCompatActivity() {
                                 address = sch.address,
                                 date = sch.date,
                                 time = sch.time,
-                                unitsCount = sch.technicianIds.size,
+                                unitsCount = sch.units.size,
                                 technicians = sch.technicians,
                                 normalizedStatus = sch.normalizedStatus,
                                 origin = "request",
