@@ -105,9 +105,6 @@ class TechnicianDashboard : AppCompatActivity() {
         }
 
         listenAssignedJobs()
-
-        // START in-app notifications listener for technician dashboard
-        InAppNotificationManager.startListening(this)
     }
 
     // ======================

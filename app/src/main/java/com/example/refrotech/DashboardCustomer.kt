@@ -5,6 +5,7 @@ import android.app.TimePickerDialog
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -14,6 +15,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import java.text.SimpleDateFormat
 import java.util.*
+import com.example.refrotech.InAppNotificationManager
 
 class DashboardCustomer : AppCompatActivity() {
 
@@ -38,9 +40,29 @@ class DashboardCustomer : AppCompatActivity() {
     private val db = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
 
+    // track whether in-app notif listening was started, so we stop it safely
+    private var inAppNotifStarted = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_dashboard_customer)
+
+        // --- Find the in-app notification container safely (nullable) ---
+        val notifContainer = findViewById<LinearLayout?>(R.id.inAppNotifContainer)
+        if (notifContainer != null) {
+            try {
+                InAppNotificationManager.registerContainer(notifContainer)
+                InAppNotificationManager.startListening(this)
+                inAppNotifStarted = true
+            } catch (ex: Exception) {
+                // Defensive: if anything goes wrong with notification system, log and continue
+                Log.w("DashboardCustomer", "Failed to start InAppNotificationManager: ${ex.message}")
+                inAppNotifStarted = false
+            }
+        } else {
+            // Log to help debugging if layout id mismatch occurs
+            Log.w("DashboardCustomer", "inAppNotifContainer not found in layout — notifications disabled for this screen.")
+        }
 
         // === Initialize Views ===
         etName = findViewById(R.id.etName)
@@ -103,51 +125,128 @@ class DashboardCustomer : AppCompatActivity() {
         navLogout.setOnClickListener {
             LogoutHelper.logout(this)
         }
-
-
-        // START in-app notification listener for this dashboard
-        InAppNotificationManager.startListening(this)
     }
 
     override fun onStop() {
         super.onStop()
-        // stop listener when user leaves
-        InAppNotificationManager.stopListening()
+        // stop listener when user leaves (only if it was started)
+        if (inAppNotifStarted) {
+            try {
+                InAppNotificationManager.stopListening()
+            } catch (ex: Exception) {
+                Log.w("DashboardCustomer", "Error stopping InAppNotificationManager: ${ex.message}")
+            }
+            inAppNotifStarted = false
+        }
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        InAppNotificationManager.stopListening()
+        if (inAppNotifStarted) {
+            try {
+                InAppNotificationManager.stopListening()
+            } catch (ex: Exception) {
+                Log.w("DashboardCustomer", "Error stopping InAppNotificationManager in onDestroy: ${ex.message}")
+            }
+            inAppNotifStarted = false
+        }
     }
 
     // ===== Date Picker with Restrictions =====
+    // ===== Date Picker with Restrictions (No Sundays, No Today, No Past) =====
+    // ===== Date Picker with Restrictions (No Sundays, No Today, No Past) =====
     private fun showDatePicker() {
         val cal = Calendar.getInstance()
-        val datePicker = DatePickerDialog(
+
+        val dialog = DatePickerDialog(
             this,
             { _, year, month, day ->
-                val selectedDate = Calendar.getInstance()
-                selectedDate.set(year, month, day)
-                val dayOfWeek = selectedDate.get(Calendar.DAY_OF_WEEK)
+                // Final validation for OK (covers older devices where we cannot intercept on-change)
+                val selected = Calendar.getInstance().apply { set(year, month, day) }
 
-                if (dayOfWeek == Calendar.SUNDAY) {
+                val tomorrow = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, 1) }
+
+                if (selected.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY) {
                     Toast.makeText(this, "Tidak dapat memilih hari Minggu.", Toast.LENGTH_SHORT).show()
-                } else {
-                    // Keep original UI format (dd/MM/yyyy) but we convert to ISO when saving
-                    val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
-                    etDate.setText(sdf.format(selectedDate.time))
+                    return@DatePickerDialog
                 }
+                if (selected.before(tomorrow)) {
+                    Toast.makeText(this, "Tanggal harus mulai dari besok.", Toast.LENGTH_SHORT).show()
+                    return@DatePickerDialog
+                }
+
+                val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+                etDate.setText(sdf.format(selected.time))
             },
             cal.get(Calendar.YEAR),
             cal.get(Calendar.MONTH),
             cal.get(Calendar.DAY_OF_MONTH)
         )
 
-        // Minimum selectable date = tomorrow
-        val tomorrow = Calendar.getInstance()
-        tomorrow.add(Calendar.DAY_OF_YEAR, 1)
-        datePicker.datePicker.minDate = tomorrow.timeInMillis
-        datePicker.show()
+        // Minimum selectable date = tomorrow (blocks today & past)
+        val tomorrow = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, 1) }
+        dialog.datePicker.minDate = tomorrow.timeInMillis
+
+        // If running on API 26+ we can react to date changes immediately.
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            dialog.datePicker.setOnDateChangedListener { _, y, m, d ->
+                val selected = Calendar.getInstance().apply { set(y, m, d) }
+                if (selected.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY) {
+                    Toast.makeText(this, "Hari Minggu tidak tersedia.", Toast.LENGTH_SHORT).show()
+                    // jump back to tomorrow
+                    dialog.datePicker.updateDate(
+                        tomorrow.get(Calendar.YEAR),
+                        tomorrow.get(Calendar.MONTH),
+                        tomorrow.get(Calendar.DAY_OF_MONTH)
+                    )
+                } else if (selected.before(tomorrow)) {
+                    Toast.makeText(this, "Tanggal harus mulai dari besok.", Toast.LENGTH_SHORT).show()
+                    dialog.datePicker.updateDate(
+                        tomorrow.get(Calendar.YEAR),
+                        tomorrow.get(Calendar.MONTH),
+                        tomorrow.get(Calendar.DAY_OF_MONTH)
+                    )
+                }
+            }
+        } else {
+            // Fallback for older devices: intercept the OK button and validate when user presses it.
+            dialog.setOnShowListener {
+                val ok = dialog.getButton(DatePickerDialog.BUTTON_POSITIVE)
+                ok.setOnClickListener {
+                    val dp = dialog.datePicker
+                    val y = dp.year
+                    val m = dp.month
+                    val d = dp.dayOfMonth
+                    val selected = Calendar.getInstance().apply { set(y, m, d) }
+
+                    if (selected.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY) {
+                        Toast.makeText(this, "Hari Minggu tidak tersedia.", Toast.LENGTH_SHORT).show()
+                        dialog.datePicker.updateDate(
+                            tomorrow.get(Calendar.YEAR),
+                            tomorrow.get(Calendar.MONTH),
+                            tomorrow.get(Calendar.DAY_OF_MONTH)
+                        )
+                        return@setOnClickListener
+                    }
+                    if (selected.before(tomorrow)) {
+                        Toast.makeText(this, "Tanggal harus mulai dari besok.", Toast.LENGTH_SHORT).show()
+                        dialog.datePicker.updateDate(
+                            tomorrow.get(Calendar.YEAR),
+                            tomorrow.get(Calendar.MONTH),
+                            tomorrow.get(Calendar.DAY_OF_MONTH)
+                        )
+                        return@setOnClickListener
+                    }
+
+                    // valid -> set field and dismiss
+                    val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+                    etDate.setText(sdf.format(selected.time))
+                    dialog.dismiss()
+                }
+            }
+        }
+
+        dialog.show()
     }
 
     // ===== Time Picker =====
@@ -175,7 +274,7 @@ class DashboardCustomer : AppCompatActivity() {
         val etPK = dialogView.findViewById<EditText>(R.id.etPK)
         val spinnerWorkType = dialogView.findViewById<Spinner>(R.id.spinnerWorkType)
 
-        val workTypes = listOf("Service", "Reparement", "Installation")
+        val workTypes = listOf("Servis", "Perbaikan", "Instalasi")
         val spinnerAdapter =
             ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, workTypes)
         spinnerWorkType.adapter = spinnerAdapter
@@ -209,7 +308,7 @@ class DashboardCustomer : AppCompatActivity() {
     private fun saveRequestToFirestore() {
         val userId = auth.currentUser?.uid
         if (userId == null) {
-            Toast.makeText(this, "Please login first", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Login Terlebih Dahulu", Toast.LENGTH_SHORT).show()
             return
         }
 
@@ -220,19 +319,16 @@ class DashboardCustomer : AppCompatActivity() {
         val mapLink = etMapLink.text.toString().trim()
         val phone = etPhone.text.toString().trim()
 
-        if (name.isEmpty() || address.isEmpty() || dateInputRaw.isEmpty() || time.isEmpty()) {
-            Toast.makeText(this, "Please fill required fields", Toast.LENGTH_SHORT).show()
+        if (name.isEmpty() || address.isEmpty() || dateInputRaw.isEmpty() || time.isEmpty() || phone.isEmpty()) {
+            Toast.makeText(this, "Semua data harus diisi terlebih dahulu", Toast.LENGTH_SHORT).show()
             return
         }
 
-        // =========================================================
-        // REQUIRED FIX: Prevent submitting if no units were added
-        // =========================================================
+        // REQUIRED: Prevent submitting if no units were added
         if (acUnits.isEmpty()) {
             Toast.makeText(this, "Tambahkan minimal 1 unit AC terlebih dahulu", Toast.LENGTH_SHORT).show()
             return
         }
-        // =========================================================
 
         // convert date to ISO yyyy-MM-dd if needed
         val isoDate = try {
@@ -269,10 +365,23 @@ class DashboardCustomer : AppCompatActivity() {
 
         db.collection("requests")
             .add(requestData)
-            .addOnSuccessListener { docRef ->
+            .addOnSuccessListener { _ ->
                 Toast.makeText(this, "Request saved", Toast.LENGTH_SHORT).show()
-                // Optionally create an in-app notification for leaders here:
-                // createLeaderNotification(name)
+
+                // === NOTIFICATION: Notify all leaders ===
+                db.collection("users")
+                    .whereEqualTo("role", "leader")
+                    .get()
+                    .addOnSuccessListener { snap ->
+                        for (d in snap.documents) {
+                            NotificationUtils.createNotification(
+                                d.id,
+                                "Permintaan Baru",
+                                "$name mengirim permintaan baru"
+                            )
+                        }
+                    }
+
                 clearForm()
             }
             .addOnFailureListener { e ->
@@ -294,8 +403,6 @@ class DashboardCustomer : AppCompatActivity() {
     // OPTIONAL: if you want to save an in-app notification for leaders from client-side:
     private fun createLeaderNotification(customerName: String) {
         try {
-            // This assumes you know leader userId(s). If you have multiple leaders, iterate.
-            // You can also write to a single "inbox" document for leaders if preferred.
             db.collection("users")
                 .whereEqualTo("role", "leader")
                 .get()
@@ -314,6 +421,7 @@ class DashboardCustomer : AppCompatActivity() {
                 }
         } catch (ex: Exception) {
             // do not fail user request if notification write fails
+            Log.w("DashboardCustomer", "createLeaderNotification failed: ${ex.message}")
         }
     }
 }

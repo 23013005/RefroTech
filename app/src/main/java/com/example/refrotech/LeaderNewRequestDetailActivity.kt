@@ -1,4 +1,3 @@
-// LeaderNewRequestDetailActivity.kt
 package com.example.refrotech
 
 import android.app.AlertDialog
@@ -9,7 +8,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView     // ADDED
+import androidx.recyclerview.widget.RecyclerView
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
 import java.text.SimpleDateFormat
@@ -26,7 +25,6 @@ class LeaderNewRequestDetailActivity : AppCompatActivity() {
     // ADDED
     private lateinit var tvPhone: TextView
 
-    // MISSING VIEW — NOW ADDED
     private lateinit var rvDetailUnits: RecyclerView
 
     private var requestId: String = ""
@@ -52,10 +50,8 @@ class LeaderNewRequestDetailActivity : AppCompatActivity() {
         btnApprove = findViewById(R.id.btnDetailApprove)
         btnReject = findViewById(R.id.btnDetailReject)
 
-        // ADDED BINDING
         tvPhone = findViewById(R.id.tvDetailPhone)
 
-        // BIND UNITS RECYCLER
         rvDetailUnits = findViewById(R.id.rvDetailUnits)
         rvDetailUnits.layoutManager = LinearLayoutManager(this)
 
@@ -87,36 +83,36 @@ class LeaderNewRequestDetailActivity : AppCompatActivity() {
         db.collection(FirestoreFields.REQUESTS).document(requestId)
             .get()
             .addOnSuccessListener { doc ->
-                if (!doc.exists()) {
-                    Toast.makeText(this, "Request not found", Toast.LENGTH_SHORT).show()
-                    finish()
-                    return@addOnSuccessListener
+                try {
+                    if (!doc.exists()) {
+                        Toast.makeText(this, "Request not found", Toast.LENGTH_SHORT).show()
+                        finish()
+                        return@addOnSuccessListener
+                    }
+
+                    val req = RequestData.fromFirestore(doc)
+                    requestData = req
+
+                    tvName.text = req.name
+                    tvAddress.text = req.address
+                    tvDateTime.text = "${req.date} • ${req.time}"
+                    tvPhone.text = req.phone ?: ""
+
+                    selectedTechNames.clear()
+                    selectedTechIds.clear()
+
+                    val acUnits = req.units.map { m ->
+                        ACUnit(
+                            brand = m["brand"]?.toString() ?: "",
+                            pk = m["pk"]?.toString() ?: "",
+                            workType = m["workType"]?.toString() ?: ""
+                        )
+                    }
+
+                    rvDetailUnits.adapter = SimpleUnitsAdapter(acUnits)
+                } catch (ex: Exception) {
+                    Toast.makeText(this, "Error loading request", Toast.LENGTH_SHORT).show()
                 }
-
-                val req = RequestData.fromFirestore(doc)
-                requestData = req
-
-                tvName.text = req.name
-                tvAddress.text = req.address
-                tvDateTime.text = "${req.date} • ${req.time}"
-
-                // ADDED PHONE DISPLAY
-                tvPhone.text = req.phone ?: ""
-
-                selectedTechNames.clear()
-                selectedTechIds.clear()
-
-                // ***** DISPLAY UNITS *****
-                val acUnits = req.units.map { m ->
-                    ACUnit(
-                        brand = m["brand"]?.toString() ?: "",
-                        pk = m["pk"]?.toString() ?: "",
-                        workType = m["workType"]?.toString() ?: ""
-                    )
-                }
-
-                rvDetailUnits.adapter = SimpleUnitsAdapter(acUnits)
-                // **************************************
             }
             .addOnFailureListener { e ->
                 Toast.makeText(this, "Failed to load request: ${e.message}", Toast.LENGTH_SHORT).show()
@@ -152,11 +148,13 @@ class LeaderNewRequestDetailActivity : AppCompatActivity() {
 
         val namesArray = allTechNames.toTypedArray()
         val idsArray = allTechIds.toTypedArray()
+
         val checked = BooleanArray(namesArray.size) { index ->
             selectedTechIds.contains(idsArray[index])
         }
+
         val availability = BooleanArray(namesArray.size) { index ->
-            val docFields = allTechDocs.getOrNull(index) ?: emptyMap<String, Any>()
+            val docFields = allTechDocs.getOrNull(index) ?: emptyMap()
             technicianIsUnavailableForDate(docFields, requestDateStr)
         }
 
@@ -166,7 +164,7 @@ class LeaderNewRequestDetailActivity : AppCompatActivity() {
                 if (availability[which]) {
                     (dialogInterface as? AlertDialog)?.listView?.setItemChecked(which, false)
                     checked[which] = false
-                    Toast.makeText(this, "${namesArray[which]} is unavailable on $requestDateStr", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, "${namesArray[which]} tidak tersedia", Toast.LENGTH_SHORT).show()
                 } else {
                     checked[which] = isChecked
                 }
@@ -174,6 +172,7 @@ class LeaderNewRequestDetailActivity : AppCompatActivity() {
             .setPositiveButton("OK") { d, _ ->
                 val selectedIds = mutableListOf<String>()
                 val selectedNames = mutableListOf<String>()
+
                 for (i in checked.indices) {
                     if (checked[i]) {
                         selectedIds.add(idsArray[i])
@@ -210,6 +209,34 @@ class LeaderNewRequestDetailActivity : AppCompatActivity() {
             .update(updates)
             .addOnSuccessListener {
                 Toast.makeText(this, "Request approved.", Toast.LENGTH_SHORT).show()
+
+                // NOTIFY CUSTOMER (Request Accepted)
+                try {
+                    db.collection(FirestoreFields.REQUESTS).document(requestId)
+                        .get()
+                        .addOnSuccessListener { docSnap ->
+                            val customerId = docSnap.getString("customerId")
+                            if (!customerId.isNullOrBlank()) {
+                                NotificationUtils.createNotification(
+                                    customerId,
+                                    "Permintaan Diterima",
+                                    "Permintaan Anda telah diterima"
+                                )
+                            }
+                        }
+                } catch (_: Exception) {}
+
+                // NOTIFY TECHNICIANS (New Assignment)
+                try {
+                    for (techId in selectedTechIds) {
+                        NotificationUtils.createNotification(
+                            techId,
+                            "Tugas Baru",
+                            "Anda mendapat penugasan baru dari leader"
+                        )
+                    }
+                } catch (_: Exception) {}
+
                 startActivity(Intent(this, LeaderDashboard::class.java))
                 finish()
             }
@@ -244,11 +271,11 @@ class LeaderNewRequestDetailActivity : AppCompatActivity() {
 
         if (rawFrom.isBlank() || rawFrom == "null") return false
 
-        val df = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
+        val df = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
         val target = try { df.parse(targetDateStr) } catch (e: Exception) { return false }
         val start = try { df.parse(rawFrom) } catch (e: Exception) { return false }
 
-        val end = if (rawTo != null && rawTo != "null" && rawTo.isNotBlank()) {
+        val end = if (!rawTo.isNullOrBlank() && rawTo != "null") {
             try { df.parse(rawTo) } catch (e: Exception) { null }
         } else null
 

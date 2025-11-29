@@ -297,6 +297,25 @@ class AddSchedulePage : AppCompatActivity() {
             .add(scheduleData)
             .addOnSuccessListener {
                 Toast.makeText(this, "Jadwal berhasil dibuat.", Toast.LENGTH_SHORT).show()
+
+                // === NOTIFICATIONS: notify each assigned technician about this new schedule ===
+                // Compose a concise message with date/time and customer to help techs act.
+                val notifTitle = "Jadwal Baru"
+                val notifMessageBase = "Anda dijadwalkan pada $scheduleDate $time untuk pelanggan $customer."
+
+                for (techId in selectedTechIds) {
+                    try {
+                        // Use the local helper createNotification (defined below) so file doesn't depend on NotificationUtils
+                        createNotification(
+                            techId,
+                            notifTitle,
+                            notifMessageBase
+                        )
+                    } catch (ex: Exception) {
+                        // swallow - notifications must not break the flow
+                    }
+                }
+
                 startActivity(Intent(this, LeaderDashboard::class.java))
                 finish()
             }
@@ -304,4 +323,17 @@ class AddSchedulePage : AppCompatActivity() {
                 Toast.makeText(this, "Gagal membuat jadwal: ${e.message}", Toast.LENGTH_LONG).show()
             }
     }
+}
+private fun createNotification(userId: String, title: String, message: String) {
+    val db = FirebaseFirestore.getInstance()
+
+    val notif = hashMapOf(
+        "userId" to userId,
+        "title" to title,
+        "message" to message,
+        "createdAt" to Timestamp.now(),
+        "read" to false
+    )
+
+    db.collection("notifications").add(notif)
 }

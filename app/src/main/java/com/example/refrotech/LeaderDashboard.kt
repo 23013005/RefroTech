@@ -71,9 +71,6 @@ class LeaderDashboard : AppCompatActivity() {
 
 
         setupBottomNav()
-
-        // START in-app notifications listener for leader dashboard
-        InAppNotificationManager.startListening(this)
     }
 
     /**

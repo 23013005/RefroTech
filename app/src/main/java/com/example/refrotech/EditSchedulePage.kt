@@ -464,9 +464,19 @@ class EditSchedulePage : AppCompatActivity() {
         db.collection(collectionName).document(scheduleId)
             .update(updates)
             .addOnSuccessListener {
+                // === NOTIFICATION: Notify assigned techs ===
+                for (techId in selectedTechIds) {
+                    NotificationUtils.createNotification(
+                        techId,
+                        "Tugas Baru",
+                        "Anda mendapat penugasan baru dari leader"
+                    )
+                }
+
                 Toast.makeText(this, "Jadwal diperbarui", Toast.LENGTH_SHORT).show()
                 finish()
             }
+
             .addOnFailureListener { e ->
                 Toast.makeText(this, "Gagal mengupdate: ${e.message}", Toast.LENGTH_SHORT).show()
             }

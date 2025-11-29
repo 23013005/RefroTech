@@ -9,7 +9,7 @@
     tools:context=".LeaderDashboard">
 
     <include
-        android:id="@+id/inAppNotif"
+        android:id="@+id/inAppNotifContainer"
         layout="@layout/view_in_app_notification"
         android:visibility="gone" />
 

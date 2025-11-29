@@ -40,8 +40,8 @@ class HistoryAdapter(
         val btnChange: FrameLayout = itemView.findViewById(R.id.btnChangeSchedule)
         val btnCancel: FrameLayout = itemView.findViewById(R.id.btnCancelRequest)
 
-        // NEW
         val btnRate: FrameLayout = itemView.findViewById(R.id.btnRateUs)
+        val btnWorkReport: FrameLayout = itemView.findViewById(R.id.btnWorkReport)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
@@ -70,12 +70,21 @@ class HistoryAdapter(
             else -> it.normalizedStatus.replaceFirstChar { c -> c.uppercase() }
         }
 
-        // NEW — rating button control
+        if (it.normalizedStatus == "completed") {
+            holder.btnWorkReport.visibility = View.VISIBLE
+        } else holder.btnWorkReport.visibility = View.GONE
+
+        holder.btnWorkReport.setOnClickListener { v ->
+            val ctx = v.context
+            val intent = Intent(ctx, WorkReportActivity::class.java)
+            intent.putExtra("id", it.id)
+            intent.putExtra("origin", it.origin)
+            ctx.startActivity(intent)
+        }
+
         if (it.normalizedStatus == "completed" && it.rating == null) {
             holder.btnRate.visibility = View.VISIBLE
-        } else {
-            holder.btnRate.visibility = View.GONE
-        }
+        } else holder.btnRate.visibility = View.GONE
 
         holder.btnRate.setOnClickListener { v ->
             val ctx = v.context
@@ -87,7 +96,6 @@ class HistoryAdapter(
             ctx.startActivity(intent)
         }
 
-        // === EDIT ===
         holder.btnEdit.setOnClickListener { v ->
             val ctx = v.context
             if (it.normalizedStatus != "pending") {
@@ -99,7 +107,6 @@ class HistoryAdapter(
             ctx.startActivity(i)
         }
 
-        // === RESCHEDULE ===
         val allowChange = it.normalizedStatus == "confirmed"
         if (!allowChange) {
             holder.btnChange.isEnabled = false
@@ -113,7 +120,6 @@ class HistoryAdapter(
             }
         }
 
-        // === CANCEL ===
         holder.btnCancel.setOnClickListener { v ->
             val ctx = v.context
             val status = it.normalizedStatus
@@ -162,22 +168,96 @@ class HistoryAdapter(
         }
     }
 
+    // ======================================================
+    // FIXED DATE PICKER (RESCHEDULE)
+    // ======================================================
     private fun showDatePickerForReschedule(ctx: Context, requestId: String, oldDate: String?, oldTime: String?) {
-        val calendar = Calendar.getInstance()
-        DatePickerDialog(
+        val cal = Calendar.getInstance()
+
+        val dialog = DatePickerDialog(
             ctx,
-            { _, year, month, dayOfMonth ->
-                val newDate = "%04d-%02d-%02d".format(year, month + 1, dayOfMonth)
+            { _, year, month, day ->
+                val selected = Calendar.getInstance().apply { set(year, month, day) }
+                val tomorrow = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, 1) }
+
+                if (selected.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY) {
+                    Toast.makeText(ctx, "Tidak dapat memilih hari Minggu.", Toast.LENGTH_SHORT).show()
+                    return@DatePickerDialog
+                }
+                if (selected.before(tomorrow)) {
+                    Toast.makeText(ctx, "Minimal dijadwalkan mulai besok.", Toast.LENGTH_SHORT).show()
+                    return@DatePickerDialog
+                }
+
+                val newDate = "%04d-%02d-%02d".format(year, month + 1, day)
                 showTimePickerForReschedule(ctx, requestId, oldDate, oldTime, newDate)
             },
-            calendar.get(Calendar.YEAR),
-            calendar.get(Calendar.MONTH),
-            calendar.get(Calendar.DAY_OF_MONTH)
-        ).apply {
-            datePicker.minDate = System.currentTimeMillis()
-            show()
+            cal.get(Calendar.YEAR),
+            cal.get(Calendar.MONTH),
+            cal.get(Calendar.DAY_OF_MONTH)
+        )
+
+        val tomorrow = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, 1) }
+        dialog.datePicker.minDate = tomorrow.timeInMillis
+
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            dialog.datePicker.setOnDateChangedListener { _, y, m, d ->
+                val selected = Calendar.getInstance().apply { set(y, m, d) }
+                if (selected.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY) {
+                    Toast.makeText(ctx, "Hari Minggu tidak tersedia.", Toast.LENGTH_SHORT).show()
+                    dialog.datePicker.updateDate(
+                        tomorrow.get(Calendar.YEAR),
+                        tomorrow.get(Calendar.MONTH),
+                        tomorrow.get(Calendar.DAY_OF_MONTH)
+                    )
+                } else if (selected.before(tomorrow)) {
+                    Toast.makeText(ctx, "Tanggal harus mulai dari besok.", Toast.LENGTH_SHORT).show()
+                    dialog.datePicker.updateDate(
+                        tomorrow.get(Calendar.YEAR),
+                        tomorrow.get(Calendar.MONTH),
+                        tomorrow.get(Calendar.DAY_OF_MONTH)
+                    )
+                }
+            }
+        } else {
+            dialog.setOnShowListener {
+                val ok = dialog.getButton(DatePickerDialog.BUTTON_POSITIVE)
+                ok.setOnClickListener {
+                    val dp = dialog.datePicker
+                    val y = dp.year
+                    val m = dp.month
+                    val d = dp.dayOfMonth
+                    val selected = Calendar.getInstance().apply { set(y, m, d) }
+
+                    if (selected.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY) {
+                        Toast.makeText(ctx, "Hari Minggu tidak tersedia.", Toast.LENGTH_SHORT).show()
+                        dialog.datePicker.updateDate(
+                            tomorrow.get(Calendar.YEAR),
+                            tomorrow.get(Calendar.MONTH),
+                            tomorrow.get(Calendar.DAY_OF_MONTH)
+                        )
+                        return@setOnClickListener
+                    }
+                    if (selected.before(tomorrow)) {
+                        Toast.makeText(ctx, "Minimal dijadwalkan mulai besok.", Toast.LENGTH_SHORT).show()
+                        dialog.datePicker.updateDate(
+                            tomorrow.get(Calendar.YEAR),
+                            tomorrow.get(Calendar.MONTH),
+                            tomorrow.get(Calendar.DAY_OF_MONTH)
+                        )
+                        return@setOnClickListener
+                    }
+
+                    val newDate = "%04d-%02d-%02d".format(y, m + 1, d)
+                    showTimePickerForReschedule(ctx, requestId, oldDate, oldTime, newDate)
+                    dialog.dismiss()
+                }
+            }
         }
+
+        dialog.show()
     }
+
 
     private fun showTimePickerForReschedule(ctx: Context, requestId: String, oldDate: String?, oldTime: String?, newDate: String) {
         val now = Calendar.getInstance()

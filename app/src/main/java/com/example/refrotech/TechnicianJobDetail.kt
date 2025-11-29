@@ -12,7 +12,6 @@ import com.google.firebase.firestore.FirebaseFirestore
 import android.util.Log
 import android.net.Uri
 
-
 class TechnicianJobDetail : AppCompatActivity() {
 
     private val PICK_IMAGES_REQUEST = 101
@@ -50,6 +49,14 @@ class TechnicianJobDetail : AppCompatActivity() {
         id = intent.getStringExtra("id") ?: ""
         technicianId = intent.getStringExtra("userId") ?: ""
 
+        // Guard: if id absent, we cannot proceed safely — avoid NPE/crash
+        if (id.isBlank()) {
+            Toast.makeText(this, "Job ID missing. Cannot open job details.", Toast.LENGTH_SHORT).show()
+            Log.w("TECHJOB", "TechnicianJobDetail opened without id -> finishing activity to avoid crash.")
+            finish()
+            return
+        }
+
         tvCustomerName = findViewById(R.id.tvCustomerName)
         tvCustomerAddress = findViewById(R.id.tvCustomerAddress)
         tvScheduledTime = findViewById(R.id.tvScheduledTime)
@@ -80,36 +87,47 @@ class TechnicianJobDetail : AppCompatActivity() {
     }
 
     private fun jobDocumentRef() = when (origin) {
-        "request" -> db.collection(FirestoreFields.REQUESTS).document(id)
-        "schedule" -> db.collection(FirestoreFields.SCHEDULES).document(id)
+        "request" -> if (id.isNotBlank()) db.collection(FirestoreFields.REQUESTS).document(id) else null
+        "schedule" -> if (id.isNotBlank()) db.collection(FirestoreFields.SCHEDULES).document(id) else null
         else -> null
     }
 
     private fun documentationCollectionRef() = when (origin) {
-        "request" -> db.collection(FirestoreFields.REQUESTS).document(id).collection("documentation")
-        "schedule" -> db.collection(FirestoreFields.SCHEDULES).document(id).collection("documentation")
+        "request" -> if (id.isNotBlank()) db.collection(FirestoreFields.REQUESTS).document(id).collection("documentation") else null
+        "schedule" -> if (id.isNotBlank()) db.collection(FirestoreFields.SCHEDULES).document(id).collection("documentation") else null
         else -> null
     }
 
     private fun loadJobDetails() {
-        val jobDoc = jobDocumentRef() ?: return
+        val jobDoc = jobDocumentRef() ?: run {
+            Log.w("TECHJOB", "loadJobDetails() called but jobDocumentRef() is null (id/origin issue).")
+            return
+        }
+
         jobDoc.get().addOnSuccessListener { doc ->
-            if (doc != null && doc.exists()) {
-                val status = doc.getString("workStatus")
-                    ?: doc.getString("jobStatus")
-                    ?: doc.getString("status")
-                currentWorkStatus = status?.lowercase() ?: "pending"
+            try {
+                if (doc != null && doc.exists()) {
+                    val status = doc.getString("workStatus")
+                        ?: doc.getString("jobStatus")
+                        ?: doc.getString("status")
+                    currentWorkStatus = status?.lowercase() ?: "pending"
 
-                tvCustomerName.text = doc.getString("customerName") ?: doc.getString("name") ?: "Nama Pelanggan"
-                tvCustomerAddress.text = doc.getString("address") ?: "Alamat"
-                val date = doc.getString("date") ?: ""
-                val time = doc.getString("time") ?: ""
-                tvScheduledTime.text = "$date • $time"
+                    tvCustomerName.text = doc.getString("customerName") ?: doc.getString("name") ?: "Nama Pelanggan"
+                    tvCustomerAddress.text = doc.getString("address") ?: "Alamat"
+                    val date = doc.getString("date") ?: ""
+                    val time = doc.getString("time") ?: ""
+                    tvScheduledTime.text = "$date • $time"
 
-                setSpinnerSelectionFromStatus(currentWorkStatus)
+                    setSpinnerSelectionFromStatus(currentWorkStatus)
+                } else {
+                    Log.w("TECHJOB", "Document does not exist for id=$id origin=$origin")
+                }
+            } catch (ex: Exception) {
+                Log.e("TECHJOB", "Exception while applying job details: ${ex.message}", ex)
             }
         }.addOnFailureListener { e ->
             Toast.makeText(this, "Failed to load job details: ${e.message}", Toast.LENGTH_SHORT).show()
+            Log.e("TECHJOB", "Failed to load job details for id=$id: ${e.message}", e)
         }
     }
 
@@ -119,41 +137,47 @@ class TechnicianJobDetail : AppCompatActivity() {
      * a display list = existingDocs + tempSelectedPreviews (previews remain until upload).
      */
     private fun loadExistingDocumentation() {
-        val collectionRef = documentationCollectionRef() ?: return
+        val collectionRef = documentationCollectionRef() ?: run {
+            Log.w("TECHJOB", "loadExistingDocumentation() called but documentationCollectionRef() is null.")
+            return
+        }
 
         Log.d("JOBDETAIL", "Loading docs from [$origin] / id=$id")
         collectionRef.get().addOnSuccessListener { snap ->
-            Log.d("JOBDETAIL", "Docs fetched: ${snap.size()}")
-            val docs = snap.documents.map { d ->
-                DocItem(
-                    id = d.id,
-                    base64 = d.getString("base64"),
-                    fileName = d.getString("fileName"),
-                    localUri = null
-                )
+            try {
+                Log.d("JOBDETAIL", "Docs fetched: ${snap.size()}")
+                val docs = snap.documents.map { d ->
+                    DocItem(
+                        id = d.id,
+                        base64 = d.getString("base64"),
+                        fileName = d.getString("fileName"),
+                        localUri = null
+                    )
+                }
+
+                existingDocs.clear()
+                existingDocs.addAll(docs)
+
+                // If previews exist, show them after existing docs.
+                // Build a fresh list (avoid passing mutable lists directly).
+                val merged = if (tempSelectedPreviews.isNotEmpty()) {
+                    val result = ArrayList<DocItem>(existingDocs.size + tempSelectedPreviews.size)
+                    result.addAll(existingDocs)
+                    // ensure previews are unique by ID
+                    val previewsUnique = tempSelectedPreviews.distinctBy { it.id }
+                    result.addAll(previewsUnique)
+                    result.toList()
+                } else {
+                    existingDocs.toList()
+                }
+
+                photoAdapter.updateItems(merged)
+            } catch (ex: Exception) {
+                Log.e("JOBDETAIL", "Exception processing documentation snapshot: ${ex.message}", ex)
             }
-
-            existingDocs.clear()
-            existingDocs.addAll(docs)
-
-            // If previews exist, show them after existing docs.
-            // Build a fresh list (avoid passing mutable lists directly).
-            val merged = if (tempSelectedPreviews.isNotEmpty()) {
-                val result = ArrayList<DocItem>(existingDocs.size + tempSelectedPreviews.size)
-                result.addAll(existingDocs)
-                // ensure previews are unique by ID
-                val previewsUnique = tempSelectedPreviews.distinctBy { it.id }
-                result.addAll(previewsUnique)
-                result.toList()
-            } else {
-                existingDocs.toList()
-            }
-
-            photoAdapter.updateItems(merged)
-
         }.addOnFailureListener { e ->
             Toast.makeText(this, "Failed to load documentation: ${e.message}", Toast.LENGTH_SHORT).show()
-            Log.e("JOBDETAIL", "Failed to load docs: ${e.message}")
+            Log.e("JOBDETAIL", "Failed to load docs: ${e.message}", e)
         }
     }
 
@@ -316,18 +340,59 @@ class TechnicianJobDetail : AppCompatActivity() {
                     return
                 }
 
-                val docRef = jobDocumentRef() ?: return
+                val docRef = jobDocumentRef() ?: run {
+                    Toast.makeText(this@TechnicianJobDetail, "Job reference invalid", Toast.LENGTH_SHORT).show()
+                    Log.w("TECHJOB", "Attempted to update status but jobDocumentRef() returned null.")
+                    setSpinnerSelectionFromStatus(currentWorkStatus)
+                    return
+                }
                 val fieldToUpdate = if (origin == "schedule") "workStatus" else "jobStatus"
                 val updates = mapOf(fieldToUpdate to selected)
 
                 docRef.update(updates)
                     .addOnSuccessListener {
+                        // === NOTIFICATION: Technician completed job ===
+                        // After update succeed, fetch doc snapshot to read customerId then create notification.
+                        if (selected == "completed") {
+                            try {
+                                jobDocumentRef()?.get()?.addOnSuccessListener { docSnap ->
+                                    try {
+                                        if (docSnap != null && docSnap.exists()) {
+                                            val customerId = docSnap.getString("customerId") ?: docSnap.getString("customerId")
+                                            if (!customerId.isNullOrBlank()) {
+                                                try {
+                                                    NotificationUtils.createNotification(
+                                                        customerId,
+                                                        "Pekerjaan Selesai",
+                                                        "Teknisi telah menyelesaikan pekerjaan Anda"
+                                                    )
+                                                } catch (ex: Exception) {
+                                                    Log.w("TECHJOB", "Failed to create notification: ${ex.message}")
+                                                }
+                                            } else {
+                                                Log.w("TECHJOB", "customerId missing in job doc for id=$id")
+                                            }
+                                        } else {
+                                            Log.w("TECHJOB", "job doc snapshot missing when creating completion notification for id=$id")
+                                        }
+                                    } catch (inner: Exception) {
+                                        Log.e("TECHJOB", "Error inside docSnap handler: ${inner.message}", inner)
+                                    }
+                                }?.addOnFailureListener { e ->
+                                    Log.w("TECHJOB", "Failed to re-fetch job doc for notification: ${e.message}")
+                                }
+                            } catch (ex: Exception) {
+                                Log.w("TECHJOB", "Exception while scheduling completion notification: ${ex.message}", ex)
+                            }
+                        }
+
                         currentWorkStatus = selected
                         Toast.makeText(this@TechnicianJobDetail, "Status updated", Toast.LENGTH_SHORT).show()
                     }
                     .addOnFailureListener { e ->
                         Toast.makeText(this@TechnicianJobDetail, "Failed to update status: ${e.message}", Toast.LENGTH_SHORT).show()
                         setSpinnerSelectionFromStatus(currentWorkStatus)
+                        Log.e("TECHJOB", "Failed updating status for id=$id: ${e.message}", e)
                     }
             }
 
