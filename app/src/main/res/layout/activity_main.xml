@@ -44,7 +44,7 @@
             android:layout_height="wrap_content"
             android:gravity="center"
             android:layout_marginTop="40dp"
-            android:text="Login Sekarang!"
+            android:text="Login Pelanggan"
             android:textSize="20sp"
             android:textColor="@color/black"
             android:fontFamily="@font/inter_bold" />
@@ -110,16 +110,10 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:gravity="center">
+        android:gravity="center"
+        android:layout_marginTop="50dp">
 
-        <TextView
-            android:id="@+id/forgot_info_text"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Tekan dan tahan tombol Masuk untuk reset password"
-            android:textSize="12sp"
-            android:textColor="@color/black"
-            android:layout_marginTop="55dp"/>
+
         <FrameLayout
             android:id="@+id/login_button"
             android:layout_width="wrap_content"
