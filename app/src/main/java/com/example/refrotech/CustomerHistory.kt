@@ -1,18 +1,19 @@
 package com.example.refrotech
 
+import android.app.DatePickerDialog
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
-import android.widget.LinearLayout
-import android.widget.Toast
+import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
+import java.util.*
 
 /**
- * CustomerHistory — robust version
+ * CustomerHistory — robust version + date filter
  *
  * Behavior:
  * - Prefers userId from intent extras ("userId")
@@ -21,10 +22,10 @@ import com.google.firebase.firestore.ListenerRegistration
  *     2) try to find user doc where field "authUid" == auth.uid (if you store it)
  *     3) try to find user doc where field "email" == auth.currentUser.email
  *     4) try to find user doc where field "phone" == auth.currentUser.phoneNumber
- * - Only after a Firestore userDocId is obtained, starts realtime listener:
- *     db.collection("requests").whereEqualTo("customerId", firestoreUserDocId)
- *
- * This keeps your existing UI and navigation intact while making the history query resilient.
+ * - Once userId resolved, listens on requests where requests.customerId == userId
+ * - Adds a date filter (creation date) with options:
+ *     All Dates, Today, Last 7 Days, Last 30 Days, Custom Range
+ * - Sorting: newest -> oldest by createdAtMillis
  */
 class CustomerHistory : AppCompatActivity() {
 
@@ -33,7 +34,7 @@ class CustomerHistory : AppCompatActivity() {
 
     private lateinit var recyclerHistory: androidx.recyclerview.widget.RecyclerView
     private lateinit var adapter: HistoryAdapter
-    private lateinit var userId: String // this will hold the Firestore user document id used in requests.customerId
+    private lateinit var userId: String // Firestore user document id used in requests.customerId
 
     // NAVIGATION
     private lateinit var navHome: LinearLayout
@@ -42,6 +43,25 @@ class CustomerHistory : AppCompatActivity() {
     private var listener: ListenerRegistration? = null
 
     private val TAG = "CustomerHistory"
+
+    // === DATE FILTER UI ===
+    private lateinit var spinnerDateFilter: Spinner
+
+    // All items from Firestore, filtered in-memory based on date filter
+    private val allHistoryItems = mutableListOf<HistoryItem>()
+
+    // Date filter types
+    private enum class DateFilterType {
+        ALL,
+        TODAY,
+        LAST_7_DAYS,
+        LAST_30_DAYS,
+        CUSTOM_RANGE
+    }
+
+    private var currentFilterType: DateFilterType = DateFilterType.ALL
+    private var customFromMillis: Long? = null
+    private var customToMillis: Long? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -55,11 +75,12 @@ class CustomerHistory : AppCompatActivity() {
 
         navHome = findViewById(R.id.navHome)
         navHistory = findViewById(R.id.navHistory)
+        spinnerDateFilter = findViewById(R.id.spinnerDateFilter)
 
         setupNavigation()
+        setupDateFilterSpinner()
 
         // Attempt to resolve the Firestore userId to use for queries.
-        // 1) use intent extra if provided
         val intentUserId = intent.getStringExtra("userId")
         if (!intentUserId.isNullOrBlank()) {
             userId = intentUserId
@@ -67,24 +88,20 @@ class CustomerHistory : AppCompatActivity() {
             return
         }
 
-        // 2) attempt to resolve using currently authenticated Firebase user
         val fUser = auth.currentUser
         if (fUser == null) {
-            // no signed-in user; cannot resolve automatically
             Toast.makeText(this, "User not signed in. Please login.", Toast.LENGTH_SHORT).show()
             Log.w(TAG, "No FirebaseAuth user. Intent userId was empty.")
             adapter.updateData(emptyList())
             return
         }
 
-        // Resolve Firestore user document id using several fallbacks
         resolveFirestoreUserId(fUser.uid, fUser.email, fUser.phoneNumber)
     }
 
     private fun setupNavigation() {
         navHome.setOnClickListener {
             val intent = Intent(this, DashboardCustomer::class.java)
-            // Keep passing the same userId if we've resolved it, otherwise rely on DashboardCustomer logic
             if (::userId.isInitialized && userId.isNotBlank()) {
                 intent.putExtra("userId", userId)
             }
@@ -93,8 +110,140 @@ class CustomerHistory : AppCompatActivity() {
         }
 
         navHistory.setOnClickListener {
-            // already here - intentionally no-op
+            // already here - no-op
         }
+    }
+
+    /**
+     * Date filter spinner: All Dates, Today, Last 7 Days, Last 30 Days, Custom Range
+     */
+    private fun setupDateFilterSpinner() {
+        val options = listOf(
+            "Semua tanggal",
+            "Hari ini",
+            "7 hari terakhir",
+            "30 hari terakhir",
+            "Rentang tanggal..."
+        )
+
+        val spinnerAdapter = ArrayAdapter(
+            this,
+            android.R.layout.simple_spinner_item,
+            options
+        )
+        spinnerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        spinnerDateFilter.adapter = spinnerAdapter
+
+        spinnerDateFilter.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(
+                parent: AdapterView<*>?,
+                view: android.view.View?,
+                position: Int,
+                id: Long
+            ) {
+                when (position) {
+                    0 -> { // All dates
+                        currentFilterType = DateFilterType.ALL
+                        customFromMillis = null
+                        customToMillis = null
+                        applyDateFilter()
+                    }
+                    1 -> { // Today
+                        currentFilterType = DateFilterType.TODAY
+                        customFromMillis = null
+                        customToMillis = null
+                        applyDateFilter()
+                    }
+                    2 -> { // Last 7 days
+                        currentFilterType = DateFilterType.LAST_7_DAYS
+                        customFromMillis = null
+                        customToMillis = null
+                        applyDateFilter()
+                    }
+                    3 -> { // Last 30 days
+                        currentFilterType = DateFilterType.LAST_30_DAYS
+                        customFromMillis = null
+                        customToMillis = null
+                        applyDateFilter()
+                    }
+                    4 -> { // Custom range
+                        currentFilterType = DateFilterType.CUSTOM_RANGE
+                        showCustomDateRangePicker()
+                    }
+                }
+            }
+
+            override fun onNothingSelected(parent: AdapterView<*>?) {
+                // no-op
+            }
+        }
+    }
+
+    /**
+     * Show two DatePickers (from/to) to define custom range based on creation date.
+     */
+    private fun showCustomDateRangePicker() {
+        val cal = Calendar.getInstance()
+
+        // 1) FROM date picker
+        val fromPicker = DatePickerDialog(
+            this,
+            { _, y, m, d ->
+                val fromCal = Calendar.getInstance().apply {
+                    set(Calendar.YEAR, y)
+                    set(Calendar.MONTH, m)
+                    set(Calendar.DAY_OF_MONTH, d)
+                    set(Calendar.HOUR_OF_DAY, 0)
+                    set(Calendar.MINUTE, 0)
+                    set(Calendar.SECOND, 0)
+                    set(Calendar.MILLISECOND, 0)
+                }
+                customFromMillis = fromCal.timeInMillis
+
+                // 2) TO date picker
+                val toPicker = DatePickerDialog(
+                    this,
+                    { _, y2, m2, d2 ->
+                        val toCal = Calendar.getInstance().apply {
+                            set(Calendar.YEAR, y2)
+                            set(Calendar.MONTH, m2)
+                            set(Calendar.DAY_OF_MONTH, d2)
+                            set(Calendar.HOUR_OF_DAY, 23)
+                            set(Calendar.MINUTE, 59)
+                            set(Calendar.SECOND, 59)
+                            set(Calendar.MILLISECOND, 999)
+                        }
+                        customToMillis = toCal.timeInMillis
+
+                        if (customToMillis != null && customFromMillis != null &&
+                            customToMillis!! < customFromMillis!!
+                        ) {
+                            Toast.makeText(
+                                this,
+                                "Tanggal akhir tidak boleh sebelum tanggal awal.",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            // Reset to all dates if invalid
+                            currentFilterType = DateFilterType.ALL
+                            spinnerDateFilter.setSelection(0)
+                        } else {
+                            applyDateFilter()
+                        }
+                    },
+                    fromCal.get(Calendar.YEAR),
+                    fromCal.get(Calendar.MONTH),
+                    fromCal.get(Calendar.DAY_OF_MONTH)
+                )
+
+                toPicker.datePicker.minDate = fromCal.timeInMillis
+                toPicker.show()
+            },
+            cal.get(Calendar.YEAR),
+            cal.get(Calendar.MONTH),
+            cal.get(Calendar.DAY_OF_MONTH)
+        )
+
+        fromPicker.show()
     }
 
     /**
@@ -102,14 +251,6 @@ class CustomerHistory : AppCompatActivity() {
      * Calls startRealtimeListenerForUser once resolved.
      */
     private fun resolveFirestoreUserId(authUid: String, email: String?, phone: String?) {
-        // Strategy order:
-        // 1) users/{authUid} exists (document id equals auth uid)
-        // 2) users where field "authUid" == authUid
-        // 3) users where field "email" == email
-        // 4) users where field "phone" == phone
-        // If none found, inform user and abort gracefully.
-
-        // 1) direct doc by authUid
         db.collection(FirestoreFields.USERS).document(authUid).get()
             .addOnSuccessListener { doc ->
                 if (doc.exists()) {
@@ -117,46 +258,42 @@ class CustomerHistory : AppCompatActivity() {
                     Log.d(TAG, "Resolved userId by direct doc id = $userId")
                     startRealtimeListenerForUser(userId)
                 } else {
-                    // 2) search by authUid field
                     db.collection(FirestoreFields.USERS)
                         .whereEqualTo("authUid", authUid)
                         .get()
                         .addOnSuccessListener { snapByAuth ->
                             if (!snapByAuth.isEmpty) {
-                                val doc = snapByAuth.documents[0]
-                                userId = doc.id
+                                val docAuth = snapByAuth.documents[0]
+                                userId = docAuth.id
                                 Log.d(TAG, "Resolved userId by authUid field = $userId")
                                 startRealtimeListenerForUser(userId)
                                 return@addOnSuccessListener
                             }
 
-                            // 3) search by email (if available)
                             if (!email.isNullOrBlank()) {
                                 db.collection(FirestoreFields.USERS)
                                     .whereEqualTo("email", email)
                                     .get()
                                     .addOnSuccessListener { snapByEmail ->
                                         if (!snapByEmail.isEmpty) {
-                                            val doc = snapByEmail.documents[0]
-                                            userId = doc.id
+                                            val docEmail = snapByEmail.documents[0]
+                                            userId = docEmail.id
                                             Log.d(TAG, "Resolved userId by email = $userId")
                                             startRealtimeListenerForUser(userId)
                                             return@addOnSuccessListener
                                         }
 
-                                        // 4) search by phone (if available)
                                         if (!phone.isNullOrBlank()) {
                                             db.collection(FirestoreFields.USERS)
                                                 .whereEqualTo("phone", phone)
                                                 .get()
                                                 .addOnSuccessListener { snapByPhone ->
                                                     if (!snapByPhone.isEmpty) {
-                                                        val doc = snapByPhone.documents[0]
-                                                        userId = doc.id
+                                                        val docPhone = snapByPhone.documents[0]
+                                                        userId = docPhone.id
                                                         Log.d(TAG, "Resolved userId by phone = $userId")
                                                         startRealtimeListenerForUser(userId)
                                                     } else {
-                                                        // Nothing found — inform and abort
                                                         Log.w(TAG, "No user doc found by authUid/email/phone.")
                                                         Toast.makeText(
                                                             this,
@@ -168,7 +305,11 @@ class CustomerHistory : AppCompatActivity() {
                                                 }
                                                 .addOnFailureListener { e ->
                                                     Log.e(TAG, "Failed search by phone: ${e.message}")
-                                                    Toast.makeText(this, "Error resolving user profile.", Toast.LENGTH_SHORT).show()
+                                                    Toast.makeText(
+                                                        this,
+                                                        "Error resolving user profile.",
+                                                        Toast.LENGTH_SHORT
+                                                    ).show()
                                                     adapter.updateData(emptyList())
                                                 }
                                         } else {
@@ -183,20 +324,23 @@ class CustomerHistory : AppCompatActivity() {
                                     }
                                     .addOnFailureListener { e ->
                                         Log.e(TAG, "Failed search by email: ${e.message}")
-                                        Toast.makeText(this, "Error resolving user profile.", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(
+                                            this,
+                                            "Error resolving user profile.",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
                                         adapter.updateData(emptyList())
                                     }
                                 return@addOnSuccessListener
                             } else {
-                                // no email; try phone above or abort
                                 if (!phone.isNullOrBlank()) {
                                     db.collection(FirestoreFields.USERS)
                                         .whereEqualTo("phone", phone)
                                         .get()
                                         .addOnSuccessListener { snapByPhone2 ->
                                             if (!snapByPhone2.isEmpty) {
-                                                val doc = snapByPhone2.documents[0]
-                                                userId = doc.id
+                                                val docPhone2 = snapByPhone2.documents[0]
+                                                userId = docPhone2.id
                                                 Log.d(TAG, "Resolved userId by phone = $userId")
                                                 startRealtimeListenerForUser(userId)
                                             } else {
@@ -211,7 +355,11 @@ class CustomerHistory : AppCompatActivity() {
                                         }
                                         .addOnFailureListener { e ->
                                             Log.e(TAG, "Failed search by phone: ${e.message}")
-                                            Toast.makeText(this, "Error resolving user profile.", Toast.LENGTH_SHORT).show()
+                                            Toast.makeText(
+                                                this,
+                                                "Error resolving user profile.",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
                                             adapter.updateData(emptyList())
                                         }
                                 } else {
@@ -227,14 +375,22 @@ class CustomerHistory : AppCompatActivity() {
                         }
                         .addOnFailureListener { e ->
                             Log.e(TAG, "Failed search by authUid field: ${e.message}")
-                            Toast.makeText(this, "Error resolving user profile.", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(
+                                this,
+                                "Error resolving user profile.",
+                                Toast.LENGTH_SHORT
+                            ).show()
                             adapter.updateData(emptyList())
                         }
                 }
             }
             .addOnFailureListener { e ->
                 Log.e(TAG, "Failed to fetch users/$authUid: ${e.message}")
-                Toast.makeText(this, "Error accessing user profile.", Toast.LENGTH_SHORT).show()
+                Toast.makeText(
+                    this,
+                    "Error accessing user profile.",
+                    Toast.LENGTH_SHORT
+                ).show()
                 adapter.updateData(emptyList())
             }
     }
@@ -248,12 +404,17 @@ class CustomerHistory : AppCompatActivity() {
             .whereEqualTo("customerId", firestoreUserId)
             .addSnapshotListener { snaps, e ->
                 if (e != null) {
-                    Toast.makeText(this, "Failed to load history: ${e.message}", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(
+                        this,
+                        "Failed to load history: ${e.message}",
+                        Toast.LENGTH_SHORT
+                    ).show()
                     Log.e(TAG, "Firestore listener error: ${e.message}")
                     return@addSnapshotListener
                 }
 
                 if (snaps == null) {
+                    allHistoryItems.clear()
                     adapter.updateData(emptyList())
                     return@addSnapshotListener
                 }
@@ -261,15 +422,17 @@ class CustomerHistory : AppCompatActivity() {
                 val newList = mutableListOf<HistoryItem>()
                 for (doc in snaps.documents) {
                     try {
-                        // Normalize and map safely using JobNormalizer
                         val sch = JobNormalizer.requestDocToSchedule(doc)
 
-                        // Map rating fields if present
+                        // rating fields
                         val rating = doc.getLong("rating")
                         val ratingComment = doc.getString("ratingComment")
                         val ratedAtMillis = doc.getTimestamp("ratedAt")?.toDate()?.time
 
-                        // Build history item
+                        // creation timestamp for filtering
+                        val createdAtMillis = doc.getLong("createdAtMillis")
+                            ?: doc.getTimestamp("createdAt")?.toDate()?.time
+
                         newList.add(
                             HistoryItem(
                                 id = sch.scheduleId,
@@ -283,19 +446,81 @@ class CustomerHistory : AppCompatActivity() {
                                 origin = "request",
                                 rating = rating,
                                 ratingComment = ratingComment,
-                                ratedAtMillis = ratedAtMillis
+                                ratedAtMillis = ratedAtMillis,
+                                createdAtMillis = createdAtMillis
                             )
                         )
                     } catch (ex: Exception) {
-                        // don't let one bad document stop the list; log and continue
-                        Log.w(TAG, "Skipped document ${doc.id} while building history: ${ex.message}")
+                        Log.w(
+                            TAG,
+                            "Skipped document ${doc.id} while building history: ${ex.message}"
+                        )
                     }
                 }
 
-                // Sort by date+time descending (stable)
-                newList.sortByDescending { it.date + it.time }
-                adapter.updateData(newList)
+                allHistoryItems.clear()
+                allHistoryItems.addAll(newList)
+                applyDateFilter()
             }
+    }
+
+    /**
+     * Apply the current date filter over allHistoryItems, then sort newest -> oldest by createdAtMillis.
+     */
+    private fun applyDateFilter() {
+        if (allHistoryItems.isEmpty()) {
+            adapter.updateData(emptyList())
+            return
+        }
+
+        val now = System.currentTimeMillis()
+        val cal = Calendar.getInstance()
+
+        val filtered = when (currentFilterType) {
+            DateFilterType.ALL -> {
+                allHistoryItems
+            }
+
+            DateFilterType.TODAY -> {
+                cal.timeInMillis = now
+                cal.set(Calendar.HOUR_OF_DAY, 0)
+                cal.set(Calendar.MINUTE, 0)
+                cal.set(Calendar.SECOND, 0)
+                cal.set(Calendar.MILLISECOND, 0)
+                val start = cal.timeInMillis
+                cal.set(Calendar.HOUR_OF_DAY, 23)
+                cal.set(Calendar.MINUTE, 59)
+                cal.set(Calendar.SECOND, 59)
+                cal.set(Calendar.MILLISECOND, 999)
+                val end = cal.timeInMillis
+
+                allHistoryItems.filter { it.createdAtMillis?.let { ts -> ts in start..end } == true }
+            }
+
+            DateFilterType.LAST_7_DAYS -> {
+                val start = now - 7L * 24L * 60L * 60L * 1000L
+                allHistoryItems.filter { it.createdAtMillis?.let { ts -> ts in start..now } == true }
+            }
+
+            DateFilterType.LAST_30_DAYS -> {
+                val start = now - 30L * 24L * 60L * 60L * 1000L
+                allHistoryItems.filter { it.createdAtMillis?.let { ts -> ts in start..now } == true }
+            }
+
+            DateFilterType.CUSTOM_RANGE -> {
+                val from = customFromMillis
+                val to = customToMillis
+                if (from == null || to == null) {
+                    allHistoryItems
+                } else {
+                    allHistoryItems.filter { it.createdAtMillis?.let { ts -> ts in from..to } == true }
+                }
+            }
+        }
+
+        // newest -> oldest by createdAtMillis; fallback 0 if null
+        val sorted = filtered.sortedByDescending { it.createdAtMillis ?: 0L }
+        adapter.updateData(sorted)
     }
 
     override fun onStop() {

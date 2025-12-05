@@ -1,11 +1,12 @@
 package com.example.refrotech
 
 import android.app.DatePickerDialog
-import android.app.TimePickerDialog
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
+import android.view.View
+import android.view.ViewGroup
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -43,6 +44,24 @@ class DashboardCustomer : AppCompatActivity() {
     // track whether in-app notif listening was started, so we stop it safely
     private var inAppNotifStarted = false
 
+    // date formats
+    private val displayDateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+
+    // --- internal model for time slots ---
+    private data class TimeSlot(val label: String, val startTime: String)
+
+    private val timeSlots = listOf(
+        TimeSlot("08:00 - 09:00", "08:00"),
+        TimeSlot("09:00 - 10:00", "09:00"),
+        TimeSlot("10:00 - 11:00", "10:00"),
+        // 11:00 - 12:00 intentionally skipped
+        TimeSlot("12:00 - 13:00", "12:00"),
+        TimeSlot("13:00 - 14:00", "13:00"),
+        TimeSlot("14:00 - 15:00", "14:00"),
+        TimeSlot("15:00 - 16:00", "15:00"),
+        TimeSlot("16:00 - 17:00", "16:00")
+    )
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_dashboard_customer)
@@ -61,7 +80,10 @@ class DashboardCustomer : AppCompatActivity() {
             }
         } else {
             // Log to help debugging if layout id mismatch occurs
-            Log.w("DashboardCustomer", "inAppNotifContainer not found in layout — notifications disabled for this screen.")
+            Log.w(
+                "DashboardCustomer",
+                "inAppNotifContainer not found in layout — notifications disabled for this screen."
+            )
         }
 
         // === Initialize Views ===
@@ -79,8 +101,10 @@ class DashboardCustomer : AppCompatActivity() {
         navHistory = findViewById(R.id.navHistory)
         navLogout = findViewById<FrameLayout>(R.id.navLogout)
 
-        // === Setup RecyclerView ===
-        adapter = ACUnitAdapter(acUnits)
+        // === Setup RecyclerView (units) ===
+        adapter = ACUnitAdapter(acUnits) { index ->
+            showAddEditUnitDialog(editIndex = index)
+        }
         recyclerACUnits.layoutManager = LinearLayoutManager(this)
         recyclerACUnits.adapter = adapter
 
@@ -103,7 +127,8 @@ class DashboardCustomer : AppCompatActivity() {
 
         // === Add Unit Button ===
         btnAddUnit.setOnClickListener {
-            showAddUnitDialog()
+            // For new unit, editIndex = null
+            showAddEditUnitDialog(editIndex = null)
         }
 
         // === Submit Request ===
@@ -152,123 +177,244 @@ class DashboardCustomer : AppCompatActivity() {
         }
     }
 
-    // ===== Date Picker with Restrictions =====
-    // ===== Date Picker with Restrictions (No Sundays, No Today, No Past) =====
-    // ===== Date Picker with Restrictions (No Sundays, No Today, No Past) =====
+    // ============================================================
+    // ===============  DATE PICKER (HIGHLY RESTRICTED) ============
+    // ============================================================
+    /**
+     * Customer can choose ONLY:
+     * - 7 valid days ahead
+     * - Starting from tomorrow
+     * - Skipping all Sundays (they don't count in the 7)
+     * - Format shown: dd/MM/yyyy
+     */
     private fun showDatePicker() {
-        val cal = Calendar.getInstance()
+        val allowedDates = buildAllowedDates()
+
+        if (allowedDates.isEmpty()) {
+            Toast.makeText(this, "Tidak ada tanggal yang tersedia.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val first = allowedDates.first()
+        val last = allowedDates.last()
 
         val dialog = DatePickerDialog(
             this,
-            { _, year, month, day ->
-                // Final validation for OK (covers older devices where we cannot intercept on-change)
-                val selected = Calendar.getInstance().apply { set(year, month, day) }
-
-                val tomorrow = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, 1) }
-
-                if (selected.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY) {
-                    Toast.makeText(this, "Tidak dapat memilih hari Minggu.", Toast.LENGTH_SHORT).show()
-                    return@DatePickerDialog
-                }
-                if (selected.before(tomorrow)) {
-                    Toast.makeText(this, "Tanggal harus mulai dari besok.", Toast.LENGTH_SHORT).show()
-                    return@DatePickerDialog
+            { _, year, month, dayOfMonth ->
+                val selected = Calendar.getInstance().apply {
+                    set(Calendar.YEAR, year)
+                    set(Calendar.MONTH, month)
+                    set(Calendar.DAY_OF_MONTH, dayOfMonth)
+                    set(Calendar.HOUR_OF_DAY, 0)
+                    set(Calendar.MINUTE, 0)
+                    set(Calendar.SECOND, 0)
+                    set(Calendar.MILLISECOND, 0)
                 }
 
-                val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
-                etDate.setText(sdf.format(selected.time))
+                if (!isAllowedDate(selected, allowedDates)) {
+                    Toast.makeText(
+                        this,
+                        "Tanggal ini tidak dapat dipilih. Pilih tanggal lain dalam 7 hari ke depan (kecuali Minggu).",
+                        Toast.LENGTH_LONG
+                    ).show()
+                    return@DatePickerDialog
+                }
+
+                etDate.setText(displayDateFormat.format(selected.time))
+                // Reset chosen time when date changes
+                etTime.setText("")
             },
-            cal.get(Calendar.YEAR),
-            cal.get(Calendar.MONTH),
-            cal.get(Calendar.DAY_OF_MONTH)
+            first.get(Calendar.YEAR),
+            first.get(Calendar.MONTH),
+            first.get(Calendar.DAY_OF_MONTH)
         )
 
-        // Minimum selectable date = tomorrow (blocks today & past)
-        val tomorrow = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, 1) }
-        dialog.datePicker.minDate = tomorrow.timeInMillis
-
-        // If running on API 26+ we can react to date changes immediately.
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            dialog.datePicker.setOnDateChangedListener { _, y, m, d ->
-                val selected = Calendar.getInstance().apply { set(y, m, d) }
-                if (selected.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY) {
-                    Toast.makeText(this, "Hari Minggu tidak tersedia.", Toast.LENGTH_SHORT).show()
-                    // jump back to tomorrow
-                    dialog.datePicker.updateDate(
-                        tomorrow.get(Calendar.YEAR),
-                        tomorrow.get(Calendar.MONTH),
-                        tomorrow.get(Calendar.DAY_OF_MONTH)
-                    )
-                } else if (selected.before(tomorrow)) {
-                    Toast.makeText(this, "Tanggal harus mulai dari besok.", Toast.LENGTH_SHORT).show()
-                    dialog.datePicker.updateDate(
-                        tomorrow.get(Calendar.YEAR),
-                        tomorrow.get(Calendar.MONTH),
-                        tomorrow.get(Calendar.DAY_OF_MONTH)
-                    )
-                }
-            }
-        } else {
-            // Fallback for older devices: intercept the OK button and validate when user presses it.
-            dialog.setOnShowListener {
-                val ok = dialog.getButton(DatePickerDialog.BUTTON_POSITIVE)
-                ok.setOnClickListener {
-                    val dp = dialog.datePicker
-                    val y = dp.year
-                    val m = dp.month
-                    val d = dp.dayOfMonth
-                    val selected = Calendar.getInstance().apply { set(y, m, d) }
-
-                    if (selected.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY) {
-                        Toast.makeText(this, "Hari Minggu tidak tersedia.", Toast.LENGTH_SHORT).show()
-                        dialog.datePicker.updateDate(
-                            tomorrow.get(Calendar.YEAR),
-                            tomorrow.get(Calendar.MONTH),
-                            tomorrow.get(Calendar.DAY_OF_MONTH)
-                        )
-                        return@setOnClickListener
-                    }
-                    if (selected.before(tomorrow)) {
-                        Toast.makeText(this, "Tanggal harus mulai dari besok.", Toast.LENGTH_SHORT).show()
-                        dialog.datePicker.updateDate(
-                            tomorrow.get(Calendar.YEAR),
-                            tomorrow.get(Calendar.MONTH),
-                            tomorrow.get(Calendar.DAY_OF_MONTH)
-                        )
-                        return@setOnClickListener
-                    }
-
-                    // valid -> set field and dismiss
-                    val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
-                    etDate.setText(sdf.format(selected.time))
-                    dialog.dismiss()
-                }
-            }
-        }
+        dialog.datePicker.minDate = first.timeInMillis
+        dialog.datePicker.maxDate = last.timeInMillis
 
         dialog.show()
     }
 
-    // ===== Time Picker =====
-    private fun showTimePicker() {
+    /**
+     * Build list of 7 valid dates starting from tomorrow, skipping Sundays.
+     */
+    private fun buildAllowedDates(): List<Calendar> {
+        val result = mutableListOf<Calendar>()
+
         val cal = Calendar.getInstance()
-        val timePicker = TimePickerDialog(
-            this,
-            { _, hour, minute ->
-                val sdf = SimpleDateFormat("HH:mm", Locale.getDefault())
-                cal.set(Calendar.HOUR_OF_DAY, hour)
-                cal.set(Calendar.MINUTE, minute)
-                etTime.setText(sdf.format(cal.time))
-            },
-            cal.get(Calendar.HOUR_OF_DAY),
-            cal.get(Calendar.MINUTE),
-            true
-        )
-        timePicker.show()
+        cal.add(Calendar.DAY_OF_YEAR, 1) // start from tomorrow
+
+        while (result.size < 7) {
+            if (cal.get(Calendar.DAY_OF_WEEK) != Calendar.SUNDAY) {
+                val clone = cal.clone() as Calendar
+                clone.set(Calendar.HOUR_OF_DAY, 0)
+                clone.set(Calendar.MINUTE, 0)
+                clone.set(Calendar.SECOND, 0)
+                clone.set(Calendar.MILLISECOND, 0)
+                result.add(clone)
+            }
+            cal.add(Calendar.DAY_OF_YEAR, 1)
+        }
+
+        return result
     }
 
-    // ===== Dialog for Adding Unit =====
+    private fun isAllowedDate(selected: Calendar, allowedDates: List<Calendar>): Boolean {
+        return allowedDates.any { sameDay(it, selected) }
+    }
+
+    private fun sameDay(c1: Calendar, c2: Calendar): Boolean {
+        return c1.get(Calendar.YEAR) == c2.get(Calendar.YEAR) &&
+                c1.get(Calendar.MONTH) == c2.get(Calendar.MONTH) &&
+                c1.get(Calendar.DAY_OF_MONTH) == c2.get(Calendar.DAY_OF_MONTH)
+    }
+
+    // ============================================================
+    // ===============  TIME PICKER (SLOT-BASED) ==================
+    // ============================================================
+    /**
+     * Customer picks a time slot:
+     * - Only from predefined ranges (08:00–17:00, with 11–12 skipped)
+     * - Disabled if already taken by:
+     *      status == "confirmed" (date/time)
+     *      OR jobStatus == "assigned" (newDate/newTime)
+     * - Shows full label in etTime ("08:00 - 09:00")
+     * - Saves only startTime ("08:00") to Firestore
+     */
+    private fun showTimePicker() {
+        val dateRaw = etDate.text.toString().trim()
+        if (dateRaw.isEmpty()) {
+            Toast.makeText(this, "Pilih tanggal terlebih dahulu.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        // convert dd/MM/yyyy -> yyyy-MM-dd for querying
+        val isoDate = try {
+            if (dateRaw.contains("/")) {
+                TimeUtils.toIsoDate(dateRaw)
+            } else {
+                dateRaw
+            }
+        } catch (e: Exception) {
+            dateRaw
+        }
+
+        fetchBlockedTimesForDate(isoDate) { blockedTimes ->
+            showTimeSlotDialog(blockedTimes)
+        }
+    }
+
+    /**
+     * Query Firestore "requests" collection to find which start times are blocked for this date.
+     *
+     * Block when:
+     * - status == "confirmed"  AND date == selectedDate -> block "time"
+     * - jobStatus == "assigned" AND newDate == selectedDate -> block "newTime"
+     */
+    private fun fetchBlockedTimesForDate(selectedIsoDate: String, onResult: (Set<String>) -> Unit) {
+        val blocked = mutableSetOf<String>()
+        var remaining = 2
+
+        fun done() {
+            remaining--
+            if (remaining <= 0) {
+                onResult(blocked)
+            }
+        }
+
+        // 1) Normal confirmed requests
+        db.collection("requests")
+            .whereEqualTo("date", selectedIsoDate)
+            .whereEqualTo("status", "confirmed")
+            .get()
+            .addOnSuccessListener { snap ->
+                for (doc in snap.documents) {
+                    val t = doc.getString("time")
+                    if (!t.isNullOrBlank()) blocked.add(t)
+                }
+                done()
+            }
+            .addOnFailureListener {
+                done()
+            }
+
+        // 2) Reschedule that has been assigned (approved via jobStatus == "assigned")
+        db.collection("requests")
+            .whereEqualTo("newDate", selectedIsoDate)
+            .whereEqualTo("jobStatus", "assigned")
+            .get()
+            .addOnSuccessListener { snap ->
+                for (doc in snap.documents) {
+                    val t = doc.getString("newTime")
+                    if (!t.isNullOrBlank()) blocked.add(t)
+                }
+                done()
+            }
+            .addOnFailureListener {
+                done()
+            }
+    }
+
+    /**
+     * Shows dialog with time slots.
+     * - Gray + disabled for blocked start times
+     * - White + enabled for free slots
+     */
+    private fun showTimeSlotDialog(blockedTimes: Set<String>) {
+        val labels = timeSlots.map { it.label }
+
+        val adapter = object : ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, labels) {
+            override fun isEnabled(position: Int): Boolean {
+                val slot = timeSlots[position]
+                return !blockedTimes.contains(slot.startTime)
+            }
+
+            override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+                val view = super.getView(position, convertView, parent) as TextView
+                val slot = timeSlots[position]
+                val isBlocked = blockedTimes.contains(slot.startTime)
+
+                if (isBlocked) {
+                    view.isEnabled = false
+                    view.setTextColor(resources.getColor(android.R.color.darker_gray))
+                } else {
+                    view.isEnabled = true
+                    view.setTextColor(resources.getColor(android.R.color.black))
+                }
+                return view
+            }
+        }
+
+        val dialog = android.app.AlertDialog.Builder(this)
+            .setTitle("Pilih Waktu")
+            .setAdapter(adapter) { d, which ->
+                val slot = timeSlots[which]
+                if (!blockedTimes.contains(slot.startTime)) {
+                    etTime.setText(slot.label) // display full range: "08:00 - 09:00"
+                }
+                d.dismiss()
+            }
+            .setNegativeButton("Batal", null)
+            .create()
+
+        dialog.show()
+    }
+
+    // ============================================================
+    // ===== DIALOG FOR ADD / EDIT / DELETE AC UNITS ===============
+    // ============================================================
+
+    // Legacy wrapper kept so nothing breaks if it's referenced anywhere else
     private fun showAddUnitDialog() {
+        showAddEditUnitDialog(editIndex = null)
+    }
+
+    /**
+     * Dialog to ADD or EDIT a unit.
+     * - editIndex == null → add new unit
+     * - editIndex != null → edit existing unit and allow delete
+     */
+    private fun showAddEditUnitDialog(editIndex: Int?) {
         val dialogView = layoutInflater.inflate(R.layout.dialog_add_unit, null)
         val etBrand = dialogView.findViewById<EditText>(R.id.etBrand)
         val etPK = dialogView.findViewById<EditText>(R.id.etPK)
@@ -279,32 +425,88 @@ class DashboardCustomer : AppCompatActivity() {
             ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, workTypes)
         spinnerWorkType.adapter = spinnerAdapter
 
-        val dialog = android.app.AlertDialog.Builder(this)
-            .setTitle("Tambah Unit AC")
+        // If editing, pre-fill current data
+        if (editIndex != null && editIndex in acUnits.indices) {
+            val unit = acUnits[editIndex]
+            etBrand.setText(unit.brand)
+            etPK.setText(unit.pk)
+            val idx = workTypes.indexOf(unit.workType)
+            spinnerWorkType.setSelection(if (idx >= 0) idx else 0)
+        }
+
+        val isEditMode = editIndex != null
+
+        val builder = android.app.AlertDialog.Builder(this)
+            .setTitle(if (isEditMode) "Edit Unit AC" else "Tambah Unit AC")
             .setView(dialogView)
-            .setPositiveButton("Tambah") { _, _ ->
+
+        // Right side: SAVE / TAMBAH
+        builder.setPositiveButton(if (isEditMode) "Simpan" else "Tambah", null)
+
+        // Middle: BATAL
+        builder.setNegativeButton("Batal", null)
+
+        // Left side: HAPUS (only in edit mode)
+        if (isEditMode) {
+            builder.setNeutralButton("Hapus", null)
+        }
+
+        val dialog = builder.create()
+
+        dialog.setOnShowListener {
+            val btnSave = dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE)
+            val btnCancel = dialog.getButton(android.app.AlertDialog.BUTTON_NEGATIVE)
+            val btnDelete = if (isEditMode) dialog.getButton(android.app.AlertDialog.BUTTON_NEUTRAL) else null
+
+            btnSave.setOnClickListener {
                 val brand = etBrand.text.toString().trim()
                 val pk = etPK.text.toString().trim()
                 val workType = spinnerWorkType.selectedItem.toString()
 
-                if (brand.isNotEmpty() && pk.isNotEmpty()) {
+                if (pk.isEmpty()) {
+                    etPK.error = "Jumlah PK wajib diisi"
+                    etPK.requestFocus()
+                    return@setOnClickListener
+                }
+
+                if (isEditMode && editIndex != null && editIndex in acUnits.indices) {
+                    // Update existing unit
+                    acUnits[editIndex] = ACUnit(brand = brand, pk = pk, workType = workType)
+                    adapter.notifyItemChanged(editIndex)
+                } else {
+                    // Add new unit
                     val unit = ACUnit(brand = brand, pk = pk, workType = workType)
                     acUnits.add(unit)
                     adapter.notifyItemInserted(acUnits.size - 1)
                     recyclerACUnits.post {
                         recyclerACUnits.smoothScrollToPosition(acUnits.size - 1)
                     }
-                } else {
-                    Toast.makeText(this, "Isi semua kolom unit terlebih dahulu", Toast.LENGTH_SHORT).show()
                 }
+
+                dialog.dismiss()
             }
-            .setNegativeButton("Batal", null)
-            .create()
+
+            btnCancel.setOnClickListener {
+                dialog.dismiss()
+            }
+
+            btnDelete?.setOnClickListener {
+                if (isEditMode && editIndex != null && editIndex in acUnits.indices) {
+                    acUnits.removeAt(editIndex)
+                    adapter.notifyItemRemoved(editIndex)
+                    adapter.notifyItemRangeChanged(editIndex, acUnits.size - editIndex)
+                }
+                dialog.dismiss()
+            }
+        }
 
         dialog.show()
     }
 
-    // ===== Save Request to Firestore =====
+    // ============================================================
+    // ================ SAVE REQUEST TO FIRESTORE =================
+    // ============================================================
+
     private fun saveRequestToFirestore() {
         val userId = auth.currentUser?.uid
         if (userId == null) {
@@ -314,12 +516,12 @@ class DashboardCustomer : AppCompatActivity() {
 
         val name = etName.text.toString().trim()
         val address = etAddress.text.toString().trim()
-        val dateInputRaw = etDate.text.toString().trim() // could be dd/MM/yyyy or yyyy-MM-dd
-        val time = etTime.text.toString().trim()
+        val dateInputRaw = etDate.text.toString().trim() // dd/MM/yyyy
+        val timeDisplay = etTime.text.toString().trim()   // e.g. "08:00 - 09:00"
         val mapLink = etMapLink.text.toString().trim()
         val phone = etPhone.text.toString().trim()
 
-        if (name.isEmpty() || address.isEmpty() || dateInputRaw.isEmpty() || time.isEmpty() || phone.isEmpty()) {
+        if (name.isEmpty() || address.isEmpty() || dateInputRaw.isEmpty() || timeDisplay.isEmpty() || phone.isEmpty()) {
             Toast.makeText(this, "Semua data harus diisi terlebih dahulu", Toast.LENGTH_SHORT).show()
             return
         }
@@ -339,6 +541,9 @@ class DashboardCustomer : AppCompatActivity() {
             dateInputRaw
         }
 
+        // extract start time from timeDisplay ("08:00 - 09:00" -> "08:00")
+        val timeForDb = timeDisplay.substringBefore("-").trim()
+
         // convert units (list of ACUnit to Map)
         val unitMaps = acUnits.map { u ->
             mapOf(
@@ -354,7 +559,7 @@ class DashboardCustomer : AppCompatActivity() {
             "name" to name,
             "address" to address,
             "date" to isoDate,
-            "time" to time,
+            "time" to timeForDb,
             "mapLink" to mapLink,
             "phone" to phone,
             "status" to "pending",

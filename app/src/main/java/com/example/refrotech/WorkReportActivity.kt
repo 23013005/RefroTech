@@ -174,7 +174,9 @@ class WorkReportActivity : AppCompatActivity() {
                                 id = d.id,
                                 base64 = d.getString("base64"),
                                 fileName = d.getString("fileName"),
-                                localUri = null
+                                localUri = null,
+                                originCollection = collectionName,   // <-- IMPORTANT
+                                parentId = docId                     // <-- IMPORTANT
                             )
                         }
                         docsAdapter.updateItems(docs)

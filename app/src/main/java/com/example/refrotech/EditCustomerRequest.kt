@@ -1,11 +1,15 @@
 package com.example.refrotech
 
 import android.app.AlertDialog
+import android.app.DatePickerDialog
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
+import android.view.ViewGroup
+import android.widget.ArrayAdapter
 import android.widget.EditText
 import android.widget.FrameLayout
+import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -21,7 +25,7 @@ import java.util.*
  *
  * - Reuses the customer dashboard layout (activity_dashboard_customer)
  * - Allows editing only when request status is editable (pending / waiting_approval / not_reviewed)
- * - Uses dialog_add_unit.xml for add/edit unit (Service / Installation / Repairment)
+ * - Uses dialog_add_unit.xml for add/edit unit (Servis / Perbaikan / Instalasi)
  * - Persists updates to Firestore (updates updatedAt)
  */
 class EditCustomerRequest : AppCompatActivity() {
@@ -49,11 +53,27 @@ class EditCustomerRequest : AppCompatActivity() {
     private val displayFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
 
     // editable statuses
-    private val editableStatuses = setOf("pending", "waiting_approval", "not_reviewed", "notreviewed", "draft")
+    private val editableStatuses =
+        setOf("pending", "waiting_approval", "not_reviewed", "notreviewed", "draft")
+
+    // internal time slot model
+    private data class TimeSlot(val label: String, val startTime: String)
+
+    private val timeSlots = listOf(
+        TimeSlot("08:00 - 09:00", "08:00"),
+        TimeSlot("09:00 - 10:00", "09:00"),
+        TimeSlot("10:00 - 11:00", "10:00"),
+        // 11:00 - 12:00 intentionally skipped
+        TimeSlot("12:00 - 13:00", "12:00"),
+        TimeSlot("13:00 - 14:00", "13:00"),
+        TimeSlot("14:00 - 15:00", "14:00"),
+        TimeSlot("15:00 - 16:00", "15:00"),
+        TimeSlot("16:00 - 17:00", "16:00")
+    )
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_dashboard_customer) // shared layout as requested
+        setContentView(R.layout.activity_dashboard_customer) // shared layout
 
         // find views (IDs must match the dashboard layout)
         etName = findViewById(R.id.etName)
@@ -63,21 +83,16 @@ class EditCustomerRequest : AppCompatActivity() {
         etMapLink = findViewById(R.id.etMapLink)
         etPhone = findViewById(R.id.etPhone)
 
-        // IMPORTANT: in your layout the RecyclerView ID is recyclerACUnits per earlier messages
         rvUnits = findViewById(R.id.recyclerACUnits)
         btnSave = findViewById(R.id.btnPesan)
 
-        // setup units adapter:
-        // ACUnitAdapter constructor in your project accepts (items, onItemClick?) or (items, onDelete)
-        // We'll use the version that accepts an item click callback to support edit on tap, and onDelete for delete.
+        // setup units adapter
         unitAdapter = ACUnitAdapter(
             acUnitList,
             onItemClick = { index ->
-                // edit unit
                 showAddEditUnitDialog(editIndex = index)
             }
         )
-        // if your ACUnitAdapter signature differs (older), the above will still work if it accepts null second arg.
         rvUnits.layoutManager = LinearLayoutManager(this)
         rvUnits.adapter = unitAdapter
 
@@ -99,20 +114,40 @@ class EditCustomerRequest : AppCompatActivity() {
         // save listener
         btnSave.setOnClickListener {
             if (!isEditableNow()) {
-                Toast.makeText(this, "This request can no longer be edited.", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "This request can no longer be edited.", Toast.LENGTH_SHORT)
+                    .show()
                 return@setOnClickListener
             }
             saveChanges()
         }
 
-        // support adding units from this page (the dashboard's add unit button id may differ; reuse same button if present)
+        // add unit button from shared layout
         val addUnitButton = findViewById<FrameLayout?>(R.id.btnAddUnit)
         addUnitButton?.setOnClickListener {
             if (!isEditableNow()) {
-                Toast.makeText(this, "This request can no longer be edited.", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "This request can no longer be edited.", Toast.LENGTH_SHORT)
+                    .show()
                 return@setOnClickListener
             }
             showAddEditUnitDialog(editIndex = null)
+        }
+
+        // date & time pickers — only for editable requests
+        etDate.setOnClickListener {
+            if (!isEditableNow()) {
+                Toast.makeText(this, "This request can no longer be edited.", Toast.LENGTH_SHORT)
+                    .show()
+            } else {
+                showDatePicker()
+            }
+        }
+        etTime.setOnClickListener {
+            if (!isEditableNow()) {
+                Toast.makeText(this, "This request can no longer be edited.", Toast.LENGTH_SHORT)
+                    .show()
+            } else {
+                showTimePicker()
+            }
         }
     }
 
@@ -136,24 +171,27 @@ class EditCustomerRequest : AppCompatActivity() {
                 currentStatus = status
 
                 if (!isEditableNow()) {
-                    // If not editable, inform user and close. Optionally you could open read-only view.
-                    Toast.makeText(this, "This request can no longer be edited (status: $status).", Toast.LENGTH_LONG).show()
+                    Toast.makeText(
+                        this,
+                        "This request can no longer be edited (status: $status).",
+                        Toast.LENGTH_LONG
+                    ).show()
                     finish()
                     return@addOnSuccessListener
                 }
 
-                // load basic fields (support both customerName and name)
+                // load basic fields
                 val name = doc.getString("customerName") ?: doc.getString("name") ?: ""
                 val address = doc.getString("address") ?: ""
                 val dateRaw = doc.getString("date") ?: doc.getString("requestedDate") ?: ""
-                val time = doc.getString("time") ?: doc.getString("requestedTime") ?: ""
+                val timeRaw = doc.getString("time") ?: doc.getString("requestedTime") ?: ""
                 val mapLink = doc.getString("mapLink") ?: doc.getString("map") ?: ""
                 val phone = doc.getString("phone") ?: doc.getString("phoneNumber") ?: ""
 
                 etName.setText(name)
                 etAddress.setText(address)
 
-                // display date as dd/MM/yyyy if possible (doc may be ISO)
+                // display date as dd/MM/yyyy
                 val displayDate = try {
                     if (dateRaw.contains("-")) {
                         val d = isoFormat.parse(dateRaw)
@@ -165,11 +203,15 @@ class EditCustomerRequest : AppCompatActivity() {
                     dateRaw
                 }
                 etDate.setText(displayDate)
-                etTime.setText(time)
+
+                // display time as "HH:mm - HH:mm" if matches a slot; otherwise raw
+                val displayTime = timeSlots.firstOrNull { it.startTime == timeRaw }?.label ?: timeRaw
+                etTime.setText(displayTime)
+
                 etMapLink.setText(mapLink)
                 etPhone.setText(phone)
 
-                // units: may be stored as list of maps under "units"
+                // units
                 acUnitList.clear()
                 val unitsField = doc.get("units")
                 if (unitsField is List<*>) {
@@ -186,40 +228,239 @@ class EditCustomerRequest : AppCompatActivity() {
                 unitAdapter.notifyDataSetChanged()
             }
             .addOnFailureListener { e ->
-                Toast.makeText(this, "Error loading request: ${e.message}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Error loading request: ${e.message}", Toast.LENGTH_SHORT)
+                    .show()
                 finish()
             }
     }
 
+    // ============================================================
+    // ===============  DATE PICKER (RESTRICTED) ==================
+    // ============================================================
     /**
-     * Shows dialog to add or edit a unit.
-     * If editIndex == null => add; else edit index.
-     *
-     * This uses your existing dialog_add_unit.xml which has:
-     * - etBrand (or etUnitBrand) -> to be defensive we check both ids
-     * - etPK (or etUnitPk)
-     * - spinnerWorkType (if spinner absent, fallback to EditText)
+     * Same rules as DashboardCustomer:
+     * - Only 7 valid days starting from tomorrow
+     * - Skip Sundays
+     * - Show as dd/MM/yyyy
      */
+    private fun showDatePicker() {
+        val allowedDates = buildAllowedDates()
+
+        if (allowedDates.isEmpty()) {
+            Toast.makeText(this, "Tidak ada tanggal yang tersedia.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val first = allowedDates.first()
+        val last = allowedDates.last()
+
+        val dialog = DatePickerDialog(
+            this,
+            { _, year, month, dayOfMonth ->
+                val selected = Calendar.getInstance().apply {
+                    set(Calendar.YEAR, year)
+                    set(Calendar.MONTH, month)
+                    set(Calendar.DAY_OF_MONTH, dayOfMonth)
+                    set(Calendar.HOUR_OF_DAY, 0)
+                    set(Calendar.MINUTE, 0)
+                    set(Calendar.SECOND, 0)
+                    set(Calendar.MILLISECOND, 0)
+                }
+
+                if (!isAllowedDate(selected, allowedDates)) {
+                    Toast.makeText(
+                        this,
+                        "Tanggal ini tidak dapat dipilih. Pilih tanggal lain dalam 7 hari ke depan (kecuali Minggu).",
+                        Toast.LENGTH_LONG
+                    ).show()
+                    return@DatePickerDialog
+                }
+
+                etDate.setText(displayFormat.format(selected.time))
+                // reset time when date changes
+                etTime.setText("")
+            },
+            first.get(Calendar.YEAR),
+            first.get(Calendar.MONTH),
+            first.get(Calendar.DAY_OF_MONTH)
+        )
+
+        dialog.datePicker.minDate = first.timeInMillis
+        dialog.datePicker.maxDate = last.timeInMillis
+
+        dialog.show()
+    }
+
+    private fun buildAllowedDates(): List<Calendar> {
+        val result = mutableListOf<Calendar>()
+        val cal = Calendar.getInstance()
+        cal.add(Calendar.DAY_OF_YEAR, 1) // start from tomorrow
+
+        while (result.size < 7) {
+            if (cal.get(Calendar.DAY_OF_WEEK) != Calendar.SUNDAY) {
+                val clone = cal.clone() as Calendar
+                clone.set(Calendar.HOUR_OF_DAY, 0)
+                clone.set(Calendar.MINUTE, 0)
+                clone.set(Calendar.SECOND, 0)
+                clone.set(Calendar.MILLISECOND, 0)
+                result.add(clone)
+            }
+            cal.add(Calendar.DAY_OF_YEAR, 1)
+        }
+
+        return result
+    }
+
+    private fun isAllowedDate(selected: Calendar, allowedDates: List<Calendar>): Boolean {
+        return allowedDates.any { sameDay(it, selected) }
+    }
+
+    private fun sameDay(c1: Calendar, c2: Calendar): Boolean {
+        return c1.get(Calendar.YEAR) == c2.get(Calendar.YEAR) &&
+                c1.get(Calendar.MONTH) == c2.get(Calendar.MONTH) &&
+                c1.get(Calendar.DAY_OF_MONTH) == c2.get(Calendar.DAY_OF_MONTH)
+    }
+
+    // ============================================================
+    // ===============  TIME PICKER (SLOT-BASED) ==================
+    // ============================================================
+    private fun showTimePicker() {
+        val dateRaw = etDate.text.toString().trim()
+        if (dateRaw.isEmpty()) {
+            Toast.makeText(this, "Pilih tanggal terlebih dahulu.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        // convert display date dd/MM/yyyy -> ISO yyyy-MM-dd for querying
+        val isoDate = try {
+            if (dateRaw.contains("/")) {
+                val d = displayFormat.parse(dateRaw)
+                if (d != null) isoFormat.format(d) else dateRaw
+            } else {
+                dateRaw
+            }
+        } catch (ex: Exception) {
+            dateRaw
+        }
+
+        fetchBlockedTimesForDate(isoDate) { blockedTimes ->
+            showTimeSlotDialog(blockedTimes)
+        }
+    }
+
+    /**
+     * Block times if:
+     * - status == "confirmed"  AND date == selectedDate -> field "time"
+     * - jobStatus == "assigned" AND newDate == selectedDate -> field "newTime"
+     */
+    private fun fetchBlockedTimesForDate(selectedIsoDate: String, onResult: (Set<String>) -> Unit) {
+        val blocked = mutableSetOf<String>()
+        var remaining = 2
+
+        fun done() {
+            remaining--
+            if (remaining <= 0) {
+                onResult(blocked)
+            }
+        }
+
+        // 1) confirmed requests
+        db.collection(FirestoreFields.REQUESTS)
+            .whereEqualTo("date", selectedIsoDate)
+            .whereEqualTo("status", "confirmed")
+            .get()
+            .addOnSuccessListener { snap ->
+                for (doc in snap.documents) {
+                    val t = doc.getString("time")
+                    if (!t.isNullOrBlank()) blocked.add(t)
+                }
+                done()
+            }
+            .addOnFailureListener { done() }
+
+        // 2) reschedule approved via jobStatus == "assigned"
+        db.collection(FirestoreFields.REQUESTS)
+            .whereEqualTo("newDate", selectedIsoDate)
+            .whereEqualTo("jobStatus", "assigned")
+            .get()
+            .addOnSuccessListener { snap ->
+                for (doc in snap.documents) {
+                    val t = doc.getString("newTime")
+                    if (!t.isNullOrBlank()) blocked.add(t)
+                }
+                done()
+            }
+            .addOnFailureListener { done() }
+    }
+
+    private fun showTimeSlotDialog(blockedTimes: Set<String>) {
+        val labels = timeSlots.map { it.label }
+
+        val adapter = object :
+            ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, labels) {
+
+            override fun isEnabled(position: Int): Boolean {
+                val slot = timeSlots[position]
+                return !blockedTimes.contains(slot.startTime)
+            }
+
+            override fun getView(
+                position: Int,
+                convertView: View?,
+                parent: ViewGroup
+            ): View {
+                val view = super.getView(position, convertView, parent) as TextView
+                val slot = timeSlots[position]
+                val isBlocked = blockedTimes.contains(slot.startTime)
+
+                if (isBlocked) {
+                    view.isEnabled = false
+                    view.setTextColor(resources.getColor(android.R.color.darker_gray))
+                } else {
+                    view.isEnabled = true
+                    view.setTextColor(resources.getColor(android.R.color.black))
+                }
+                return view
+            }
+        }
+
+        val dialog = AlertDialog.Builder(this)
+            .setTitle("Pilih Waktu")
+            .setAdapter(adapter) { d, which ->
+                val slot = timeSlots[which]
+                if (!blockedTimes.contains(slot.startTime)) {
+                    etTime.setText(slot.label) // "HH:mm - HH:mm"
+                }
+                d.dismiss()
+            }
+            .setNegativeButton("Batal", null)
+            .create()
+
+        dialog.show()
+    }
+
+    // ============================================================
+    // ===== DIALOG FOR ADD / EDIT / DELETE AC UNITS ===============
+    // ============================================================
     private fun showAddEditUnitDialog(editIndex: Int?) {
         val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_add_unit, null)
 
         val etBrand = dialogView.findViewById<EditText>(R.id.etBrand)
         val etPK = dialogView.findViewById<EditText>(R.id.etPK)
-        val spinner = dialogView.findViewById<android.widget.Spinner>(R.id.spinnerWorkType)
+        val spinner = dialogView.findViewById<Spinner>(R.id.spinnerWorkType)
 
-        val workTypes = listOf("Service", "Installation", "Repairment")
-        spinner.adapter = android.widget.ArrayAdapter(
+        val workTypes = listOf("Servis", "Perbaikan", "Instalasi")
+        spinner.adapter = ArrayAdapter(
             this,
             android.R.layout.simple_spinner_dropdown_item,
             workTypes
         )
 
-        // PRE-FILL WHEN EDITING
-        if (editIndex != null) {
+        // pre-fill when editing
+        if (editIndex != null && editIndex in acUnitList.indices) {
             val u = acUnitList[editIndex]
             etBrand.setText(u.brand)
             etPK.setText(u.pk)
-
             val idx = workTypes.indexOf(u.workType)
             spinner.setSelection(if (idx >= 0) idx else 0)
         }
@@ -262,9 +503,14 @@ class EditCustomerRequest : AppCompatActivity() {
                 btnDelete.visibility = View.GONE
             } else {
                 btnDelete.setOnClickListener {
-                    acUnitList.removeAt(editIndex)
-                    unitAdapter.notifyItemRemoved(editIndex)
-                    unitAdapter.notifyItemRangeChanged(editIndex, acUnitList.size - editIndex)
+                    if (editIndex in acUnitList.indices) {
+                        acUnitList.removeAt(editIndex)
+                        unitAdapter.notifyItemRemoved(editIndex)
+                        unitAdapter.notifyItemRangeChanged(
+                            editIndex,
+                            acUnitList.size - editIndex
+                        )
+                    }
                     alert.dismiss()
                 }
             }
@@ -273,36 +519,44 @@ class EditCustomerRequest : AppCompatActivity() {
         alert.show()
     }
 
+    // ============================================================
+    // ================ SAVE REQUEST TO FIRESTORE =================
+    // ============================================================
 
     private fun saveChanges() {
-        // validate
         val name = etName.text.toString().trim()
         val address = etAddress.text.toString().trim()
-        val dateRaw = etDate.text.toString().trim()
-        val time = etTime.text.toString().trim()
+        val dateRaw = etDate.text.toString().trim()      // dd/MM/yyyy
+        val timeDisplay = etTime.text.toString().trim()  // "HH:mm - HH:mm" or "HH:mm"
         val mapLink = etMapLink.text.toString().trim()
         val phone = etPhone.text.toString().trim()
 
-        if (name.isEmpty() || address.isEmpty() || dateRaw.isEmpty() || time.isEmpty()) {
+        if (name.isEmpty() || address.isEmpty() || dateRaw.isEmpty() || timeDisplay.isEmpty()) {
             Toast.makeText(this, "Please fill all required fields", Toast.LENGTH_SHORT).show()
             return
         }
 
-        // convert display date dd/MM/yyyy -> ISO yyyy-MM-dd if needed
+        if (acUnitList.isEmpty()) {
+            Toast.makeText(this, "Tambahkan minimal 1 unit AC terlebih dahulu", Toast.LENGTH_SHORT)
+                .show()
+            return
+        }
+
+        // dd/MM/yyyy -> yyyy-MM-dd
         val isoDate = try {
             if (dateRaw.contains("/")) {
                 val d = displayFormat.parse(dateRaw)
                 if (d != null) isoFormat.format(d) else dateRaw
             } else {
-                // if user already entered ISO, use as-is
                 dateRaw
             }
         } catch (ex: Exception) {
-            // fallback: use raw input
             dateRaw
         }
 
-        // convert units
+        // extract start time portion
+        val timeForDb = timeDisplay.substringBefore("-").trim()
+
         val unitMaps = acUnitList.map { unit ->
             mapOf(
                 "brand" to unit.brand,
@@ -316,7 +570,7 @@ class EditCustomerRequest : AppCompatActivity() {
             "name" to name,
             "address" to address,
             "date" to isoDate,
-            "time" to time,
+            "time" to timeForDb,
             "mapLink" to mapLink,
             "phone" to phone,
             "units" to unitMaps,
@@ -331,7 +585,11 @@ class EditCustomerRequest : AppCompatActivity() {
                 finish()
             }
             .addOnFailureListener { e ->
-                Toast.makeText(this, "Failed to save changes: ${e.message}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(
+                    this,
+                    "Failed to save changes: ${e.message}",
+                    Toast.LENGTH_SHORT
+                ).show()
             }
     }
 }

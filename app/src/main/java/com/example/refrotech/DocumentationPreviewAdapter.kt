@@ -70,21 +70,17 @@ class DocumentationPreviewAdapter(
             holder.img.setImageResource(android.R.color.darker_gray)
         }
 
-        // FULLSCREEN IMAGE CLICK HANDLER (UPDATED FIX)
+        // FULLSCREEN IMAGE CLICK HANDLER
         holder.img.setOnClickListener {
             val ctx = holder.itemView.context
             val intent = Intent(ctx, FullScreenImageActivity::class.java)
 
-            // ALWAYS prioritize base64 viewer
-            if (!doc.base64.isNullOrBlank()) {
-                intent.putExtra("base64", doc.base64)
-            }
+            // Pass the required identifiers so FullScreenImageActivity can read the correct Firestore doc:
+            intent.putExtra("docId", doc.id)
+            intent.putExtra("originCollection", doc.originCollection)
+            intent.putExtra("parentId", doc.parentId)
 
-            // Only pass URI if this image originated from local gallery AND no base64 exists yet
-            if (doc.localUri != null && doc.base64.isNullOrBlank()) {
-                intent.putExtra("uri", doc.localUri.toString())
-            }
-
+            // If adapter used in non-activity context, ensure a new task flag
             if (ctx !is android.app.Activity) {
                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
@@ -92,6 +88,7 @@ class DocumentationPreviewAdapter(
             ctx.startActivity(intent)
         }
 
+        // Delete button behavior — preserved exactly
         if (readOnly || onDelete == null) {
             holder.btnDelete.visibility = View.GONE
         } else {

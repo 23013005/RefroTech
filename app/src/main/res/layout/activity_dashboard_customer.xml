@@ -44,43 +44,20 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal">
+                android:orientation="vertical">
                 <!-- ===== GREETING ===== -->
                 <TextView
                     android:id="@+id/cust_name"
-                    android:layout_width="wrap_content"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Halo Bradley"
-                    android:textSize="22sp"
+                    android:text="Permintaan Layanan"
+                    android:textSize="25sp"
                     android:fontFamily="@font/inter_bold"
                     android:layout_marginTop="10dp"
-                    android:layout_gravity="left"
+                    android:layout_gravity="center"
+                    android:paddingLeft="2dp"
                     android:textColor="@color/black" />
 
-                <FrameLayout
-                    android:id="@+id/navLogout"
-                    android:layout_width="wrap_content"
-                    android:layout_height="match_parent"
-                    android:gravity="right"
-                    android:layout_marginLeft="150dp"
-                    android:orientation="horizontal">
-                    <ImageView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:src="@drawable/red_button"
-                        android:layout_gravity="right"
-                        android:contentDescription="Logout" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Logout"
-                        android:textColor="@color/white"
-                        android:textSize="16sp"
-                        android:fontFamily="@font/inter_bold"
-                        android:layout_gravity="center"
-                        android:paddingBottom="5dp"/>
-                </FrameLayout>
             </LinearLayout>
 
 
@@ -212,6 +189,36 @@
                         android:textColor="@color/black"
                         android:fontFamily="@font/inter_bold"
                         android:layout_gravity="center" />
+                </FrameLayout>
+            </LinearLayout>
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+                <!-- ===== GREETING ===== -->
+
+
+                <FrameLayout
+                    android:id="@+id/navLogout"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:orientation="horizontal">
+                    <ImageView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:src="@drawable/red_button"
+                        android:layout_gravity="center"
+                        android:contentDescription="Logout" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Keluar"
+                        android:textColor="@color/white"
+                        android:textSize="16sp"
+                        android:fontFamily="@font/inter_bold"
+                        android:layout_gravity="center"
+                        android:paddingBottom="5dp"/>
                 </FrameLayout>
             </LinearLayout>
         </LinearLayout>

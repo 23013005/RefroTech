@@ -22,5 +22,8 @@ data class HistoryItem(
     // Rating fields (nullable)
     val rating: Long? = null,
     val ratingComment: String? = null,
-    val ratedAtMillis: Long? = null
+    val ratedAtMillis: Long? = null,
+
+    // NEW: creation timestamp (for date filtering)
+    val createdAtMillis: Long? = null
 )

@@ -1,6 +1,7 @@
 package com.example.refrotech
 
 import android.app.AlertDialog
+import android.app.DatePickerDialog
 import android.app.TimePickerDialog
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -13,6 +14,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.QuerySnapshot
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -65,6 +67,19 @@ class EditSchedulePage : AppCompatActivity() {
     private var scheduleId: String = ""
     private var scheduleDate: String = ""
     private var origin: String = "schedule" // "schedule" or "request"
+
+    // Fixed 1-hour time slots (start times) used everywhere
+    private val slotStartTimes = listOf(
+        "08:00",
+        "09:00",
+        "10:00",
+        // 11:00–12:00 is skipped for lunch
+        "12:00",
+        "13:00",
+        "14:00",
+        "15:00",
+        "16:00"
+    )
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -139,16 +154,240 @@ class EditSchedulePage : AppCompatActivity() {
         spinnerStatus.adapter = adapterSpinner
     }
 
+    /**
+     * New time picker logic:
+     * - For leader-made schedules (origin == "schedule"): leader can change date (any non-Sunday),
+     *   then choose a 1-hour slot.
+     * - For customer-origin jobs (origin == "request"): date is fixed; only time slot can change.
+     * - In both cases we check conflicts with:
+     *      - schedules (assignedTechnicianIds)
+     *      - requests (assignedTechnicianIds / technicianIds) with blocking statuses.
+     */
     private fun showTimePicker() {
+        if (selectedTechIds.isEmpty()) {
+            Toast.makeText(this, "Pilih teknisi terlebih dahulu.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        if (origin == "schedule") {
+            // Leader-made schedule: allow date change (no Sundays)
+            showDatePickerForLeaderSchedule()
+        } else {
+            // Customer-origin job: date fixed, only time slot can change
+            loadConflictsAndShowTimeSlots(scheduleDate)
+        }
+    }
+
+    /**
+     * Date picker only for leader-made schedules.
+     * - Allows any date (past or future) except Sunday.
+     * - When a valid date is chosen, updates scheduleDate and then opens slot dialog.
+     */
+    private fun showDatePickerForLeaderSchedule() {
         val c = Calendar.getInstance()
-        val hour = c.get(Calendar.HOUR_OF_DAY)
-        val minute = c.get(Calendar.MINUTE)
-        TimePickerDialog(this, { _, h, m ->
-            val cal = Calendar.getInstance()
-            cal.set(Calendar.HOUR_OF_DAY, h)
-            cal.set(Calendar.MINUTE, m)
-            etTime.setText(timeFormat.format(cal.time))
-        }, hour, minute, true).show()
+
+        // Initialize picker with current scheduleDate if parsable, else today
+        try {
+            val parts = scheduleDate.split("-")
+            if (parts.size == 3) {
+                val year = parts[0].toInt()
+                val month = parts[1].toInt() - 1
+                val day = parts[2].toInt()
+                c.set(year, month, day)
+            }
+        } catch (_: Exception) {
+            // fall back to today
+        }
+
+        val dialog = DatePickerDialog(
+            this,
+            { _, year, month, dayOfMonth ->
+                val selected = Calendar.getInstance().apply { set(year, month, dayOfMonth) }
+                if (selected.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY) {
+                    Toast.makeText(this, "Tidak dapat memilih hari Minggu.", Toast.LENGTH_SHORT).show()
+                    return@DatePickerDialog
+                }
+
+                // Store back in ISO yyyy-MM-dd format
+                scheduleDate = "%04d-%02d-%02d".format(year, month + 1, dayOfMonth)
+                loadConflictsAndShowTimeSlots(scheduleDate)
+            },
+            c.get(Calendar.YEAR),
+            c.get(Calendar.MONTH),
+            c.get(Calendar.DAY_OF_MONTH)
+        )
+
+        dialog.show()
+    }
+
+    /**
+     * Load schedule & request conflicts for selected technicians on a given date,
+     * then show the slot selection dialog.
+     *
+     * Strict rule:
+     *  - same date
+     *  - same time slot
+     *  - ANY overlap in technician IDs
+     *  - requests only block when status/jobStatus is confirmed/on-progress/completed,
+     *    or when rescheduleStatus == accepted (newDate/newTime used).
+     */
+    private fun loadConflictsAndShowTimeSlots(targetDate: String) {
+        if (selectedTechIds.isEmpty()) {
+            Toast.makeText(this, "Pilih teknisi terlebih dahulu.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val blockedStartTimes = mutableSetOf<String>()
+
+        // 1) SCHEDULES: date = targetDate, technicians overlap via assignedTechnicianIds
+        db.collection(FirestoreFields.SCHEDULES)
+            .whereEqualTo("date", targetDate)
+            .whereArrayContainsAny(FirestoreFields.FIELD_ASSIGNED_TECHNICIAN_IDS, selectedTechIds)
+            .get()
+            .addOnSuccessListener { snap ->
+                for (doc in snap.documents) {
+                    if (doc.id == scheduleId) continue // don't block itself
+
+                    val workStatus = (doc.getString("workStatus") ?: "").lowercase(Locale.getDefault())
+                    if (workStatus == "cancelled") continue
+
+                    val t = doc.getString("time") ?: continue
+                    blockedStartTimes.add(t)
+                }
+
+                // 2) REQUESTS: technician overlap via assignedTechnicianIds / technicianIds
+                loadBlockingRequests(targetDate, blockedStartTimes)
+            }
+            .addOnFailureListener {
+                // Even if schedules query fails, still try requests
+                loadBlockingRequests(targetDate, blockedStartTimes)
+            }
+    }
+
+    /**
+     * Load blocking requests for selected technicians and merge into blockedStartTimes.
+     * Once both queries finish, show the slot dialog.
+     */
+    private fun loadBlockingRequests(targetDate: String, blockedStartTimes: MutableSet<String>) {
+        if (selectedTechIds.isEmpty()) {
+            showTimeSlotDialog(targetDate, blockedStartTimes)
+            return
+        }
+
+        val reqCol = db.collection(FirestoreFields.REQUESTS)
+        var pendingQueries = 2
+
+        fun maybeDone() {
+            pendingQueries--
+            if (pendingQueries <= 0) {
+                showTimeSlotDialog(targetDate, blockedStartTimes)
+            }
+        }
+
+        fun processRequestSnapshot(snap: QuerySnapshot?) {
+            if (snap == null) return
+
+            for (doc in snap.documents) {
+                if (doc.id == scheduleId) continue // avoid self-blocking if editing a request
+
+                val status = doc.getString("status")?.lowercase(Locale.getDefault())
+                val jobStatus = doc.getString("jobStatus")?.lowercase(Locale.getDefault())
+                val rescheduleStatus = doc.getString("rescheduleStatus")?.lowercase(Locale.getDefault())
+
+                var blockDate: String? = null
+                var blockTime: String? = null
+
+                // If reschedule already accepted, use newDate/newTime as the blocking slot
+                if (rescheduleStatus == "accepted") {
+                    val newDate = doc.getString("newDate")
+                    val newTime = doc.getString("newTime")
+                    if (!newDate.isNullOrBlank() && !newTime.isNullOrBlank()) {
+                        blockDate = newDate
+                        blockTime = newTime
+                    }
+                }
+
+                // Otherwise, use normal date/time if status is blocking
+                if (blockDate == null) {
+                    val d = doc.getString("date")
+                    val t = doc.getString("time")
+                    if (!d.isNullOrBlank() && !t.isNullOrBlank()) {
+                        val blocking = status in listOf("confirmed", "assigned") ||
+                                jobStatus in listOf("confirmed", "on-progress", "completed")
+                        if (!blocking) continue
+                        blockDate = d
+                        blockTime = t
+                    }
+                }
+
+                if (blockDate == targetDate && !blockTime.isNullOrBlank()) {
+                    blockedStartTimes.add(blockTime)
+                }
+            }
+        }
+
+        // Query 1: assignedTechnicianIds
+        reqCol.whereArrayContainsAny("assignedTechnicianIds", selectedTechIds)
+            .get()
+            .addOnSuccessListener { snap ->
+                processRequestSnapshot(snap)
+                maybeDone()
+            }
+            .addOnFailureListener {
+                maybeDone()
+            }
+
+        // Query 2: technicianIds (older docs / other flows)
+        reqCol.whereArrayContainsAny("technicianIds", selectedTechIds)
+            .get()
+            .addOnSuccessListener { snap ->
+                processRequestSnapshot(snap)
+                maybeDone()
+            }
+            .addOnFailureListener {
+                maybeDone()
+            }
+    }
+
+    /**
+     * Show list of 1-hour slots, marking blocked ones as "Penuh".
+     * When user taps a blocked slot, we show a Toast and do nothing.
+     */
+    private fun showTimeSlotDialog(dateStr: String, blockedStartTimes: Set<String>) {
+        val labels = slotStartTimes.map { start ->
+            val endHour = try {
+                start.substring(0, 2).toInt() + 1
+            } catch (_: Exception) {
+                null
+            }
+            val endLabel = if (endHour != null) "%02d:00".format(endHour) else ""
+            val baseLabel = if (endLabel.isNotEmpty()) "$start to $endLabel" else start
+
+            if (blockedStartTimes.contains(start)) {
+                "$baseLabel (Penuh)"
+            } else {
+                baseLabel
+            }
+        }.toTypedArray()
+
+        AlertDialog.Builder(this)
+            .setTitle("Pilih jam untuk $dateStr")
+            .setItems(labels) { dialog, which ->
+                val chosenStart = slotStartTimes[which]
+                if (blockedStartTimes.contains(chosenStart)) {
+                    Toast.makeText(
+                        this,
+                        "Slot sudah penuh untuk teknisi yang dipilih.",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    return@setItems
+                }
+
+                etTime.setText(chosenStart)
+                dialog.dismiss()
+            }
+            .setNegativeButton("Batal", null)
+            .show()
     }
 
     private fun showAddEditUnitDialog(editIndex: Int?) {
@@ -367,11 +606,13 @@ class EditSchedulePage : AppCompatActivity() {
                 if (unitsField is List<*>) {
                     for (u in unitsField) {
                         val m = u as? Map<*, *> ?: continue
-                        units.add(ACUnit(
-                            brand = m["brand"]?.toString() ?: "",
-                            pk = m["pk"]?.toString() ?: "",
-                            workType = m["workType"]?.toString() ?: ""
-                        ))
+                        units.add(
+                            ACUnit(
+                                brand = m["brand"]?.toString() ?: "",
+                                pk = m["pk"]?.toString() ?: "",
+                                workType = m["workType"]?.toString() ?: ""
+                            )
+                        )
                     }
                 }
                 unitsAdapter.notifyDataSetChanged()
@@ -394,7 +635,9 @@ class EditSchedulePage : AppCompatActivity() {
                         id = d.id,
                         base64 = d.getString("base64"),
                         fileName = d.getString("fileName"),
-                        localUri = null
+                        localUri = null,
+                        originCollection = parentCollection,
+                        parentId = docId
                     )
                 }
                 // Pass docs to adapter (read-only)
@@ -447,14 +690,20 @@ class EditSchedulePage : AppCompatActivity() {
             "updatedAt" to Timestamp.now()
         )
 
+        // For leader-made schedules, allow date to be updated.
+        if (origin == "schedule" && scheduleDate.isNotBlank()) {
+            updates["date"] = scheduleDate
+        }
+        // For customer-origin requests we deliberately do NOT touch "date" here
+        // (date stays fixed as requested).
+
         // Add status update to the appropriate field depending on the origin
         if (chosenStatus != null) {
             if (origin == "schedule") {
                 updates["workStatus"] = chosenStatus
             } else {
                 // origin == "request":
-                // We want leader to be able to transition jobStatus (technician progress) as well as leave 'status' (approval).
-                // To avoid accidentally demoting leader approval, we update jobStatus for technician progression.
+                // Use jobStatus for technician progression, leave approval status alone.
                 updates["jobStatus"] = chosenStatus
             }
         } // else: chosenStatus == null -> leave existing status untouched

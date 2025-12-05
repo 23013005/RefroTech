@@ -1,7 +1,6 @@
 package com.example.refrotech
 
 import android.app.AlertDialog
-import android.app.TimePickerDialog
 import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -52,6 +51,21 @@ class AddSchedulePage : AppCompatActivity() {
 
     private var scheduleDate: String = ""
 
+    // --- Time slot model (shared logic conceptually with customer side) ---
+    private data class TimeSlot(val label: String, val startTime: String)
+
+    private val timeSlots = listOf(
+        TimeSlot("08:00 - 09:00", "08:00"),
+        TimeSlot("09:00 - 10:00", "09:00"),
+        TimeSlot("10:00 - 11:00", "10:00"),
+        // 11:00 - 12:00 intentionally skipped (lunch)
+        TimeSlot("12:00 - 13:00", "12:00"),
+        TimeSlot("13:00 - 14:00", "13:00"),
+        TimeSlot("14:00 - 15:00", "14:00"),
+        TimeSlot("15:00 - 16:00", "15:00"),
+        TimeSlot("16:00 - 17:00", "16:00")
+    )
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_add_schedule_page)
@@ -65,10 +79,10 @@ class AddSchedulePage : AppCompatActivity() {
         btnAddUnit = findViewById(R.id.btnAddUnit)
         btnSave = findViewById(R.id.btnSave)
 
-        // read date from intent (leader dashboard) or default to today
+        // read date from intent (leader dashboard) or default to today (yyyy-MM-dd)
         scheduleDate = intent.getStringExtra("date") ?: dateFormat.format(Date())
 
-        // setup time picker
+        // setup time picker -> now slot-based and technician-aware
         etTime.setOnClickListener { showTimePicker() }
 
         // setup units adapter
@@ -88,16 +102,107 @@ class AddSchedulePage : AppCompatActivity() {
         btnSave.setOnClickListener { saveScheduleAsLeader() }
     }
 
+    /**
+     * SLOT-BASED TIME PICKER FOR LEADER
+     * - Requires at least one technician selected
+     * - Blocks times that already have schedules on this date for any selected technician
+     */
     private fun showTimePicker() {
-        val c = Calendar.getInstance()
-        val hour = c.get(Calendar.HOUR_OF_DAY)
-        val minute = c.get(Calendar.MINUTE)
-        TimePickerDialog(this, { _, h, m ->
-            val cal = Calendar.getInstance()
-            cal.set(Calendar.HOUR_OF_DAY, h)
-            cal.set(Calendar.MINUTE, m)
-            etTime.setText(timeFormat.format(cal.time))
-        }, hour, minute, true).show()
+        if (selectedTechIds.isEmpty()) {
+            Toast.makeText(this, "Pilih teknisi terlebih dahulu sebelum memilih waktu.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        // Fetch blocked times for this date + selected technicians from SCHEDULES collection
+        fetchBlockedTimesForTechnicians(scheduleDate, selectedTechIds) { blockedTimes ->
+            showTimeSlotDialog(blockedTimes)
+        }
+    }
+
+    /**
+     * Query SCHEDULES collection to find which start times are blocked for this date
+     * and *any* of the selected technicians.
+     *
+     * Blocks when:
+     * - schedule.date == scheduleDate
+     * - assignedTechnicianIds (or FIELD_ASSIGNED_TECHNICIAN_IDS) contains any selected techId
+     */
+    private fun fetchBlockedTimesForTechnicians(
+        dateIso: String,
+        techIds: List<String>,
+        onResult: (Set<String>) -> Unit
+    ) {
+        // Firestore whereArrayContainsAny requires non-empty list
+        if (techIds.isEmpty()) {
+            onResult(emptySet())
+            return
+        }
+
+        val blocked = mutableSetOf<String>()
+
+        db.collection(FirestoreFields.SCHEDULES)
+            .whereEqualTo("date", dateIso)
+            .whereArrayContainsAny(FirestoreFields.FIELD_ASSIGNED_TECHNICIAN_IDS, techIds)
+            .get()
+            .addOnSuccessListener { snap ->
+                for (doc in snap.documents) {
+                    val t = doc.getString("time")
+                    if (!t.isNullOrBlank()) {
+                        blocked.add(t)
+                    }
+                }
+                onResult(blocked)
+            }
+            .addOnFailureListener {
+                // On failure, fallback to no blocked times
+                onResult(blocked)
+            }
+    }
+
+    /**
+     * Shows a dialog listing the time slots.
+     * - Disabled (grey) if startTime is in blockedTimes.
+     * - Selecting a slot sets etTime to the start time ("HH:mm") as before.
+     */
+    private fun showTimeSlotDialog(blockedTimes: Set<String>) {
+        val labels = timeSlots.map { it.label }
+
+        val adapter = object : ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, labels) {
+            override fun isEnabled(position: Int): Boolean {
+                val slot = timeSlots[position]
+                return !blockedTimes.contains(slot.startTime)
+            }
+
+            override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+                val view = super.getView(position, convertView, parent) as TextView
+                val slot = timeSlots[position]
+                val isBlocked = blockedTimes.contains(slot.startTime)
+
+                if (isBlocked) {
+                    view.isEnabled = false
+                    view.setTextColor(resources.getColor(android.R.color.darker_gray))
+                } else {
+                    view.isEnabled = true
+                    view.setTextColor(resources.getColor(android.R.color.black))
+                }
+                return view
+            }
+        }
+
+        val dialog = AlertDialog.Builder(this)
+            .setTitle("Pilih Waktu")
+            .setAdapter(adapter) { d, which ->
+                val slot = timeSlots[which]
+                if (!blockedTimes.contains(slot.startTime)) {
+                    // Leader side: we keep it as "HH:mm" directly
+                    etTime.setText(slot.startTime)
+                }
+                d.dismiss()
+            }
+            .setNegativeButton("Batal", null)
+            .create()
+
+        dialog.show()
     }
 
     /**
@@ -207,7 +312,8 @@ class AddSchedulePage : AppCompatActivity() {
 
         val items = mutableListOf<TechnicianMultiSelectAdapter.TechItem>()
         for (i in allTechnicianNames.indices) {
-            val docFields = if (i < allTechnicianDocs.size) allTechnicianDocs[i] else emptyMap<String, Any>()
+            val docFields =
+                if (i < allTechnicianDocs.size) allTechnicianDocs[i] else emptyMap<String, Any>()
             val techId = allTechnicianIds.getOrNull(i) ?: continue
             val techName = allTechnicianNames[i]
             val isUnavailable = technicianIsUnavailableForDate(docFields, scheduleDateStr)
@@ -225,7 +331,10 @@ class AddSchedulePage : AppCompatActivity() {
         }
 
         val recycler = RecyclerView(this)
-        recycler.layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+        recycler.layoutParams = ViewGroup.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        )
         recycler.layoutManager = LinearLayoutManager(this)
         val adapter = TechnicianMultiSelectAdapter(items) { /* no-op */ }
         recycler.adapter = adapter
@@ -278,7 +387,8 @@ class AddSchedulePage : AppCompatActivity() {
             return
         }
 
-        val unitsList = units.map { u -> mapOf("brand" to u.brand, "pk" to u.pk, "workType" to u.workType) }
+        val unitsList =
+            units.map { u -> mapOf("brand" to u.brand, "pk" to u.pk, "workType" to u.workType) }
 
         val scheduleData = hashMapOf<String, Any>(
             "date" to scheduleDate,
@@ -290,7 +400,8 @@ class AddSchedulePage : AppCompatActivity() {
             FirestoreFields.FIELD_ASSIGNED_TECHNICIAN_IDS to selectedTechIds,
             "units" to unitsList,
             "createdAt" to Timestamp.now(),
-            "createdBy" to "leader"
+            "createdBy" to "leader",
+            "status" to "assigned"
         )
 
         db.collection(FirestoreFields.SCHEDULES)
@@ -299,20 +410,18 @@ class AddSchedulePage : AppCompatActivity() {
                 Toast.makeText(this, "Jadwal berhasil dibuat.", Toast.LENGTH_SHORT).show()
 
                 // === NOTIFICATIONS: notify each assigned technician about this new schedule ===
-                // Compose a concise message with date/time and customer to help techs act.
                 val notifTitle = "Jadwal Baru"
-                val notifMessageBase = "Anda dijadwalkan pada $scheduleDate $time untuk pelanggan $customer."
+                val notifMessageBase =
+                    "Anda dijadwalkan pada $scheduleDate $time untuk pelanggan $customer."
 
                 for (techId in selectedTechIds) {
                     try {
-                        // Use the local helper createNotification (defined below) so file doesn't depend on NotificationUtils
                         createNotification(
                             techId,
                             notifTitle,
                             notifMessageBase
                         )
-                    } catch (ex: Exception) {
-                        // swallow - notifications must not break the flow
+                    } catch (_: Exception) {
                     }
                 }
 
@@ -320,10 +429,12 @@ class AddSchedulePage : AppCompatActivity() {
                 finish()
             }
             .addOnFailureListener { e ->
-                Toast.makeText(this, "Gagal membuat jadwal: ${e.message}", Toast.LENGTH_LONG).show()
+                Toast.makeText(this, "Gagal membuat jadwal: ${e.message}", Toast.LENGTH_LONG)
+                    .show()
             }
     }
 }
+
 private fun createNotification(userId: String, title: String, message: String) {
     val db = FirebaseFirestore.getInstance()
 
