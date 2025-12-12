@@ -22,18 +22,18 @@ class TechnicianHistory : AppCompatActivity() {
     private lateinit var navHome: LinearLayout
     private lateinit var navHistory: LinearLayout
 
-    // NEW FILTER UI
+    // FILTER UI
     private lateinit var spinnerStatusFilter: Spinner
     private lateinit var tvDateFilter: TextView
 
     private var technicianId: String = ""
 
-    // STORE EVERYTHING FETCHED
+    // ALL JOBS (source of truth for filters)
     private val allJobs = mutableListOf<Schedule>()
 
-    // FILTER VALUES
-    private var filterStatus: String = "all"
-    private var filterDate: String? = null   // yyyy-MM-dd
+    // CURRENT FILTER VALUES
+    private var filterStatus: String = "all"   // "all", "confirmed", "on-progress", "completed"
+    private var filterDate: String? = null     // yyyy-MM-dd or null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -86,7 +86,6 @@ class TechnicianHistory : AppCompatActivity() {
     }
 
     private fun setupFilters() {
-
         val statuses = listOf("All", "Confirmed", "On-Progress", "Completed")
         val adapterSpinner = android.widget.ArrayAdapter(
             this,
@@ -96,7 +95,7 @@ class TechnicianHistory : AppCompatActivity() {
         adapterSpinner.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         spinnerStatusFilter.adapter = adapterSpinner
 
-        spinnerStatusFilter.setOnItemSelectedListener(object :
+        spinnerStatusFilter.onItemSelectedListener = object :
             android.widget.AdapterView.OnItemSelectedListener {
             override fun onItemSelected(
                 parent: android.widget.AdapterView<*>,
@@ -104,12 +103,12 @@ class TechnicianHistory : AppCompatActivity() {
                 pos: Int,
                 id: Long
             ) {
-                filterStatus = statuses[pos].lowercase()
+                filterStatus = statuses[pos].lowercase(Locale.getDefault())
                 applyFilters()
             }
 
             override fun onNothingSelected(parent: android.widget.AdapterView<*>) {}
-        })
+        }
 
         tvDateFilter.setOnClickListener { pickDate() }
     }
@@ -148,8 +147,13 @@ class TechnicianHistory : AppCompatActivity() {
         adapter.updateData(list)
     }
 
+    /**
+     * New history logic:
+     * - Show ALL jobs (past, present, future) where this technician is/was assigned
+     * - Only exclude jobs whose normalizedStatus == "cancelled"
+     * - Let filters operate purely on normalizedStatus + date
+     */
     private fun loadHistory() {
-        val excluded = listOf("pending", "accepted", "rejected")
         val results = mutableListOf<Schedule>()
 
         // ========== LOAD REQUEST JOBS ==========
@@ -157,15 +161,13 @@ class TechnicianHistory : AppCompatActivity() {
             .whereArrayContains(FirestoreFields.FIELD_TECHNICIAN_IDS, technicianId)
             .get()
             .addOnSuccessListener { snap ->
-
                 for (doc in snap.documents) {
-                    val jobStatus = (doc.getString("jobStatus") ?: "").lowercase()
-                    if (jobStatus !in excluded) {
+                    val s = JobNormalizer.requestDocToSchedule(doc)
 
-                        val s = JobNormalizer.requestDocToSchedule(doc)
-                        s.normalizedStatus = jobStatus   // unified field
-                        results.add(s)
-                    }
+                    // Exclude cancelled only
+                    if (s.normalizedStatus == "cancelled") continue
+
+                    results.add(s)
                 }
 
                 // ========== LOAD SCHEDULE JOBS ==========
@@ -175,25 +177,29 @@ class TechnicianHistory : AppCompatActivity() {
                     .addOnSuccessListener { schSnap ->
 
                         for (doc in schSnap.documents) {
-                            val workStatus = (doc.getString("workStatus") ?: "").lowercase()
-                            if (workStatus !in excluded) {
+                            val s = JobNormalizer.scheduleDocToSchedule(doc)
 
-                                val s = JobNormalizer.scheduleDocToSchedule(doc)
-                                s.normalizedStatus = workStatus   // unified field
-                                results.add(s)
-                            }
+                            // Exclude cancelled only
+                            if (s.normalizedStatus == "cancelled") continue
+
+                            results.add(s)
                         }
 
-                        // SORT
+                        // SORT BY DATE + TIME ASC
                         results.sortWith(compareBy({ it.date }, { it.time }))
 
                         allJobs.clear()
                         allJobs.addAll(results)
 
-                        adapter.updateData(results)
+                        // Now apply current filters (status + date)
+                        applyFilters()
                     }
                     .addOnFailureListener { e ->
-                        Toast.makeText(this, "Failed to load schedules: ${e.message}", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(
+                            this,
+                            "Failed to load schedules: ${e.message}",
+                            Toast.LENGTH_SHORT
+                        ).show()
                     }
             }
             .addOnFailureListener {

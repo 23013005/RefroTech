@@ -132,9 +132,6 @@
             android:overScrollMode="never" />
 
         <!-- ADD UNIT -->
-
-
-
         <FrameLayout
             android:id="@+id/btnAddUnit"
             android:layout_width="wrap_content"

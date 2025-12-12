@@ -127,8 +127,8 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="15dp"
-            android:layout_marginHorizontal="120dp"
-            android:background="@drawable/button_tambah_jadwal"
+            android:layout_marginHorizontal="110dp"
+            android:background="@drawable/login_button"
             android:paddingVertical="10dp"
             android:paddingHorizontal="30dp">
 
@@ -137,9 +137,9 @@
                 android:layout_height="wrap_content"
                 android:text="Tambah Unit"
                 android:layout_gravity="center"
-                android:layout_marginBottom="4dp"
                 android:textColor="@color/black"
                 android:textSize="16sp"
+                android:paddingBottom="7dp"
                 android:fontFamily="@font/inter_bold" />
         </FrameLayout>
 

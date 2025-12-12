@@ -2,19 +2,18 @@ package com.example.refrotech
 
 import android.app.AlertDialog
 import android.app.DatePickerDialog
-import android.app.TimePickerDialog
+import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
-import android.widget.*
 import android.view.ViewGroup
+import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.QuerySnapshot
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -24,6 +23,18 @@ import java.util.*
  *
  * Also loads documentation (read-only) for both schedule documents and confirmed requests shown as schedules.
  * Leaders can update status from this page (same transitions available to technicians).
+ *
+ * Capacity rules (global per slot, not per-technician):
+ *  - A slot (date + time) is considered TAKEN if:
+ *      • there is ANY schedule on that date/time (except workStatus == "cancelled")
+ *      • OR a request whose *active* slot is that date/time:
+ *          - If rescheduleStatus == "accepted"  -> active slot = newDate/newTime
+ *          - Else (pending / none / rejected)   -> active slot = date/time
+ *        and the job is active:
+ *          - status in {"confirmed", "assigned"}
+ *          - OR jobStatus in {"confirmed", "assigned", "on-progress", "completed"}
+ *
+ *  - Pending reschedules DO NOT block newTime/newDate, only their original time/date.
  */
 class EditSchedulePage : AppCompatActivity() {
 
@@ -43,11 +54,11 @@ class EditSchedulePage : AppCompatActivity() {
     private lateinit var btnSave: FrameLayout
     private lateinit var btnDelete: FrameLayout
 
-    // NEW: documentation viewer (read-only)
-    private lateinit var recyclerDocs: androidx.recyclerview.widget.RecyclerView
+    // documentation viewer (read-only)
+    private lateinit var recyclerDocs: RecyclerView
     private lateinit var docsAdapter: DocumentationPreviewAdapter
 
-    // NEW: status spinner for leader to change work status
+    // status spinner for leader to change work status
     private lateinit var spinnerStatus: Spinner
 
     private val db: FirebaseFirestore = FirebaseFirestore.getInstance()
@@ -97,9 +108,8 @@ class EditSchedulePage : AppCompatActivity() {
         ratingBarLeader = findViewById(R.id.ratingBarLeader)
         tvRatingComment = findViewById(R.id.tvRatingComment)
         tvRatingDate = findViewById(R.id.tvRatingDate)
-        btnWorkReport = findViewById<FrameLayout>(R.id.btnWorkReport)
+        btnWorkReport = findViewById(R.id.btnWorkReport)
 
-        // NEW views
         recyclerDocs = findViewById(R.id.recyclerDocs)
         spinnerStatus = findViewById(R.id.spinnerStatus)
 
@@ -131,13 +141,12 @@ class EditSchedulePage : AppCompatActivity() {
 
         setupStatusSpinner()
 
-        // The Work Report button should be hidden by default; loadSchedule will show it when appropriate
+        // Work Report button hidden by default; loadSchedule will show when appropriate
         btnWorkReport.visibility = View.GONE
 
-        // Open WorkReportActivity when clicked — will use origin + id
         btnWorkReport.setOnClickListener {
             if (scheduleId.isBlank()) return@setOnClickListener
-            val intent = android.content.Intent(this, WorkReportActivity::class.java)
+            val intent = Intent(this, WorkReportActivity::class.java)
             intent.putExtra("origin", origin)
             intent.putExtra("id", scheduleId)
             startActivity(intent)
@@ -145,9 +154,7 @@ class EditSchedulePage : AppCompatActivity() {
     }
 
     private fun setupStatusSpinner() {
-        // IMPORTANT: remove "pending" as an option for the leader.
-        // We add an explicit placeholder at index 0 which means "no change".
-        // Index 1..N represent valid status transitions the leader can select.
+        // 0 -> no change; 1 -> confirmed; 2 -> on-progress; 3 -> completed
         val statuses = listOf("-- Change status --", "Confirmed", "On-Progress", "Completed")
         val adapterSpinner = ArrayAdapter(this, android.R.layout.simple_spinner_item, statuses)
         adapterSpinner.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
@@ -155,13 +162,11 @@ class EditSchedulePage : AppCompatActivity() {
     }
 
     /**
-     * New time picker logic:
+     * Time picker for both leader-made and customer-origin jobs:
      * - For leader-made schedules (origin == "schedule"): leader can change date (any non-Sunday),
      *   then choose a 1-hour slot.
      * - For customer-origin jobs (origin == "request"): date is fixed; only time slot can change.
-     * - In both cases we check conflicts with:
-     *      - schedules (assignedTechnicianIds)
-     *      - requests (assignedTechnicianIds / technicianIds) with blocking statuses.
+     * - Capacity is global per slot, not per technician.
      */
     private fun showTimePicker() {
         if (selectedTechIds.isEmpty()) {
@@ -221,131 +226,118 @@ class EditSchedulePage : AppCompatActivity() {
     }
 
     /**
-     * Load schedule & request conflicts for selected technicians on a given date,
-     * then show the slot selection dialog.
+     * GLOBAL capacity logic (Option 1 for reschedule):
      *
-     * Strict rule:
-     *  - same date
-     *  - same time slot
-     *  - ANY overlap in technician IDs
-     *  - requests only block when status/jobStatus is confirmed/on-progress/completed,
-     *    or when rescheduleStatus == accepted (newDate/newTime used).
+     * A slot is blocked if, on targetDate:
+     *  - there is ANY schedule on that date/time (except workStatus == "cancelled")
+     *  - OR a request whose ACTIVE slot is that date/time, where:
+     *      • If rescheduleStatus == "accepted"  -> active slot = newDate/newTime
+     *      • Else                               -> active slot = date/time
+     *
+     * Only active jobs block:
+     *  status in {"confirmed", "assigned"} OR
+     *  jobStatus in {"confirmed", "assigned", "on-progress", "completed"}.
+     *
+     * Pending reschedules: only original date/time blocks (NOT newDate/newTime).
      */
     private fun loadConflictsAndShowTimeSlots(targetDate: String) {
-        if (selectedTechIds.isEmpty()) {
-            Toast.makeText(this, "Pilih teknisi terlebih dahulu.", Toast.LENGTH_SHORT).show()
-            return
-        }
-
         val blockedStartTimes = mutableSetOf<String>()
+        var remaining = 3
 
-        // 1) SCHEDULES: date = targetDate, technicians overlap via assignedTechnicianIds
-        db.collection(FirestoreFields.SCHEDULES)
-            .whereEqualTo("date", targetDate)
-            .whereArrayContainsAny(FirestoreFields.FIELD_ASSIGNED_TECHNICIAN_IDS, selectedTechIds)
-            .get()
-            .addOnSuccessListener { snap ->
-                for (doc in snap.documents) {
-                    if (doc.id == scheduleId) continue // don't block itself
-
-                    val workStatus = (doc.getString("workStatus") ?: "").lowercase(Locale.getDefault())
-                    if (workStatus == "cancelled") continue
-
-                    val t = doc.getString("time") ?: continue
-                    blockedStartTimes.add(t)
-                }
-
-                // 2) REQUESTS: technician overlap via assignedTechnicianIds / technicianIds
-                loadBlockingRequests(targetDate, blockedStartTimes)
-            }
-            .addOnFailureListener {
-                // Even if schedules query fails, still try requests
-                loadBlockingRequests(targetDate, blockedStartTimes)
-            }
-    }
-
-    /**
-     * Load blocking requests for selected technicians and merge into blockedStartTimes.
-     * Once both queries finish, show the slot dialog.
-     */
-    private fun loadBlockingRequests(targetDate: String, blockedStartTimes: MutableSet<String>) {
-        if (selectedTechIds.isEmpty()) {
-            showTimeSlotDialog(targetDate, blockedStartTimes)
-            return
-        }
-
-        val reqCol = db.collection(FirestoreFields.REQUESTS)
-        var pendingQueries = 2
-
-        fun maybeDone() {
-            pendingQueries--
-            if (pendingQueries <= 0) {
+        fun doneOne() {
+            remaining--
+            if (remaining <= 0) {
                 showTimeSlotDialog(targetDate, blockedStartTimes)
             }
         }
 
-        fun processRequestSnapshot(snap: QuerySnapshot?) {
-            if (snap == null) return
+        // 1) SCHEDULES: any schedule on that date (except cancelled) blocks its "time"
+        db.collection(FirestoreFields.SCHEDULES)
+            .whereEqualTo("date", targetDate)
+            .get()
+            .addOnSuccessListener { snap ->
+                for (doc in snap.documents) {
+                    // avoid blocking itself when editing a schedule
+                    if (origin == "schedule" && doc.id == scheduleId) continue
 
-            for (doc in snap.documents) {
-                if (doc.id == scheduleId) continue // avoid self-blocking if editing a request
+                    val workStatus = (doc.getString("workStatus") ?: "").lowercase(Locale.getDefault())
+                    if (workStatus == "cancelled") continue
 
-                val status = doc.getString("status")?.lowercase(Locale.getDefault())
-                val jobStatus = doc.getString("jobStatus")?.lowercase(Locale.getDefault())
-                val rescheduleStatus = doc.getString("rescheduleStatus")?.lowercase(Locale.getDefault())
-
-                var blockDate: String? = null
-                var blockTime: String? = null
-
-                // If reschedule already accepted, use newDate/newTime as the blocking slot
-                if (rescheduleStatus == "accepted") {
-                    val newDate = doc.getString("newDate")
-                    val newTime = doc.getString("newTime")
-                    if (!newDate.isNullOrBlank() && !newTime.isNullOrBlank()) {
-                        blockDate = newDate
-                        blockTime = newTime
-                    }
-                }
-
-                // Otherwise, use normal date/time if status is blocking
-                if (blockDate == null) {
-                    val d = doc.getString("date")
                     val t = doc.getString("time")
-                    if (!d.isNullOrBlank() && !t.isNullOrBlank()) {
-                        val blocking = status in listOf("confirmed", "assigned") ||
-                                jobStatus in listOf("confirmed", "on-progress", "completed")
-                        if (!blocking) continue
-                        blockDate = d
-                        blockTime = t
+                    if (!t.isNullOrBlank()) {
+                        blockedStartTimes.add(t)
                     }
                 }
+                doneOne()
+            }
+            .addOnFailureListener {
+                doneOne()
+            }
 
-                if (blockDate == targetDate && !blockTime.isNullOrBlank()) {
-                    blockedStartTimes.add(blockTime)
+        // 2) REQUESTS by original DATE
+        db.collection(FirestoreFields.REQUESTS)
+            .whereEqualTo("date", targetDate)
+            .get()
+            .addOnSuccessListener { snap ->
+                for (doc in snap.documents) {
+                    // avoid blocking itself when origin == request
+                    if (origin == "request" && doc.id == scheduleId) continue
+
+                    val status = doc.getString("status")?.lowercase(Locale.getDefault())
+                    val jobStatus = doc.getString("jobStatus")?.lowercase(Locale.getDefault())
+                    val rescheduleStatus =
+                        doc.getString("rescheduleStatus")?.lowercase(Locale.getDefault())
+
+                    val time = doc.getString("time")
+
+                    // If reschedule already ACCEPTED and moved somewhere (newDate/newTime),
+                    // original slot should NOT block anymore.
+                    val hasAcceptedReschedule =
+                        rescheduleStatus == "accepted" &&
+                                !doc.getString("newDate").isNullOrBlank() &&
+                                !doc.getString("newTime").isNullOrBlank()
+
+                    if (hasAcceptedReschedule) {
+                        // Active slot is newDate/newTime; handled in query 3 below.
+                        continue
+                    }
+
+                    // Otherwise, active slot is original date/time.
+                    val blocking =
+                        status in listOf("confirmed", "assigned") ||
+                                jobStatus in listOf("confirmed", "assigned", "on-progress", "completed")
+
+                    if (blocking && !time.isNullOrBlank()) {
+                        blockedStartTimes.add(time)
+                    }
                 }
-            }
-        }
-
-        // Query 1: assignedTechnicianIds
-        reqCol.whereArrayContainsAny("assignedTechnicianIds", selectedTechIds)
-            .get()
-            .addOnSuccessListener { snap ->
-                processRequestSnapshot(snap)
-                maybeDone()
+                doneOne()
             }
             .addOnFailureListener {
-                maybeDone()
+                doneOne()
             }
 
-        // Query 2: technicianIds (older docs / other flows)
-        reqCol.whereArrayContainsAny("technicianIds", selectedTechIds)
+        // 3) REQUESTS by newDate (only rescheduleStatus == "accepted" blocks newTime)
+        db.collection(FirestoreFields.REQUESTS)
+            .whereEqualTo("newDate", targetDate)
             .get()
             .addOnSuccessListener { snap ->
-                processRequestSnapshot(snap)
-                maybeDone()
+                for (doc in snap.documents) {
+                    if (origin == "request" && doc.id == scheduleId) continue
+
+                    val rescheduleStatus =
+                        doc.getString("rescheduleStatus")?.lowercase(Locale.getDefault())
+                    if (rescheduleStatus != "accepted") continue
+
+                    val newTime = doc.getString("newTime")
+                    if (!newTime.isNullOrBlank()) {
+                        blockedStartTimes.add(newTime)
+                    }
+                }
+                doneOne()
             }
             .addOnFailureListener {
-                maybeDone()
+                doneOne()
             }
     }
 
@@ -377,7 +369,7 @@ class EditSchedulePage : AppCompatActivity() {
                 if (blockedStartTimes.contains(chosenStart)) {
                     Toast.makeText(
                         this,
-                        "Slot sudah penuh untuk teknisi yang dipilih.",
+                        "Slot sudah penuh.",
                         Toast.LENGTH_SHORT
                     ).show()
                     return@setItems
@@ -500,7 +492,8 @@ class EditSchedulePage : AppCompatActivity() {
         }
 
         val recycler = RecyclerView(this)
-        recycler.layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+        recycler.layoutParams =
+            ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
         recycler.layoutManager = LinearLayoutManager(this)
         val adapter = TechnicianMultiSelectAdapter(items) { /* no-op */ }
         recycler.adapter = adapter
@@ -548,6 +541,7 @@ class EditSchedulePage : AppCompatActivity() {
                 etAddress.setText(doc.getString("address") ?: "")
                 etTime.setText(doc.getString("time") ?: "")
                 scheduleDate = doc.getString("date") ?: scheduleDate
+
                 // ==== LOAD RATING ====
                 val ratingValue = doc.getLong("rating")
                 val ratingComment = doc.getString("ratingComment")
@@ -562,7 +556,7 @@ class EditSchedulePage : AppCompatActivity() {
                         else "Comment: (none)"
 
                     if (ratingTimestamp != null) {
-                        val sdf = java.text.SimpleDateFormat("dd MMM yyyy HH:mm", java.util.Locale.getDefault())
+                        val sdf = SimpleDateFormat("dd MMM yyyy HH:mm", Locale.getDefault())
                         tvRatingDate.text = "Rated on: ${sdf.format(ratingTimestamp)}"
                     } else {
                         tvRatingDate.text = ""
@@ -571,6 +565,7 @@ class EditSchedulePage : AppCompatActivity() {
                 } else {
                     ratingContainer.visibility = View.GONE
                 }
+
                 // status: find normalized status and set spinner position
                 val computedStatus = if (origin == "schedule") {
                     JobNormalizer.scheduleDocToSchedule(doc).normalizedStatus
@@ -578,13 +573,11 @@ class EditSchedulePage : AppCompatActivity() {
                     JobNormalizer.requestDocToSchedule(doc).normalizedStatus
                 }
 
-                // spinner entries: index 0 -> placeholder (no change)
-                // 1 -> confirmed, 2 -> on-progress, 3 -> completed
                 val spinnerIndex = when (computedStatus) {
                     "confirmed" -> 1
                     "on-progress" -> 2
                     "completed" -> 3
-                    else -> 0 // pending or unknown -> placeholder "no change"
+                    else -> 0
                 }
                 spinnerStatus.setSelection(spinnerIndex, false)
 
@@ -630,7 +623,6 @@ class EditSchedulePage : AppCompatActivity() {
             .get()
             .addOnSuccessListener { snap ->
                 val docs = snap.documents.map { d ->
-                    // the stored fields could be base64 or filename; we read what exists
                     DocItem(
                         id = d.id,
                         base64 = d.getString("base64"),
@@ -640,11 +632,9 @@ class EditSchedulePage : AppCompatActivity() {
                         parentId = docId
                     )
                 }
-                // Pass docs to adapter (read-only)
                 docsAdapter.updateItems(docs)
             }
             .addOnFailureListener { e ->
-                // swallow failure but log
                 Toast.makeText(this, "Failed to load documentation: ${e.message}", Toast.LENGTH_SHORT).show()
             }
     }
@@ -665,20 +655,17 @@ class EditSchedulePage : AppCompatActivity() {
             return
         }
 
-        // prepare units list
-        val unitsList = units.map { u -> mapOf("brand" to u.brand, "pk" to u.pk, "workType" to u.workType) }
+        val unitsList = units.map { u ->
+            mapOf("brand" to u.brand, "pk" to u.pk, "workType" to u.workType)
+        }
 
-        // Evaluate chosen status from spinner
-        // NOTE: we removed "pending" option. index 0 = placeholder = "no change"
-        // index 1 -> confirmed, 2 -> on-progress, 3 -> completed
         val chosenStatus: String? = when (spinnerStatus.selectedItemPosition) {
             1 -> "confirmed"
             2 -> "on-progress"
             3 -> "completed"
-            else -> null // placeholder chosen -> DO NOT CHANGE status
+            else -> null
         }
 
-        // Build updates for common fields
         val updates = hashMapOf<String, Any?>(
             "customerName" to customerName,
             "address" to address,
@@ -694,26 +681,20 @@ class EditSchedulePage : AppCompatActivity() {
         if (origin == "schedule" && scheduleDate.isNotBlank()) {
             updates["date"] = scheduleDate
         }
-        // For customer-origin requests we deliberately do NOT touch "date" here
-        // (date stays fixed as requested).
 
-        // Add status update to the appropriate field depending on the origin
         if (chosenStatus != null) {
             if (origin == "schedule") {
                 updates["workStatus"] = chosenStatus
             } else {
-                // origin == "request":
-                // Use jobStatus for technician progression, leave approval status alone.
                 updates["jobStatus"] = chosenStatus
             }
-        } // else: chosenStatus == null -> leave existing status untouched
+        }
 
         val collectionName = if (origin == "schedule") FirestoreFields.SCHEDULES else FirestoreFields.REQUESTS
 
         db.collection(collectionName).document(scheduleId)
             .update(updates)
             .addOnSuccessListener {
-                // === NOTIFICATION: Notify assigned techs ===
                 for (techId in selectedTechIds) {
                     NotificationUtils.createNotification(
                         techId,
@@ -725,7 +706,6 @@ class EditSchedulePage : AppCompatActivity() {
                 Toast.makeText(this, "Jadwal diperbarui", Toast.LENGTH_SHORT).show()
                 finish()
             }
-
             .addOnFailureListener { e ->
                 Toast.makeText(this, "Gagal mengupdate: ${e.message}", Toast.LENGTH_SHORT).show()
             }
@@ -737,7 +717,8 @@ class EditSchedulePage : AppCompatActivity() {
             .setMessage("Apakah anda yakin ingin menghapus jadwal ini?")
             .setPositiveButton("Hapus") { _, _ ->
                 if (scheduleId.isBlank()) return@setPositiveButton
-                val collectionName = if (origin == "schedule") FirestoreFields.SCHEDULES else FirestoreFields.REQUESTS
+                val collectionName =
+                    if (origin == "schedule") FirestoreFields.SCHEDULES else FirestoreFields.REQUESTS
                 db.collection(collectionName).document(scheduleId)
                     .delete()
                     .addOnSuccessListener {

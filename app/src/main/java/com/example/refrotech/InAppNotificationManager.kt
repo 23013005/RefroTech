@@ -18,12 +18,19 @@ object InAppNotificationManager {
     // weak ref to avoid leaks
     private var containerRef: WeakReference<View>? = null
 
+    // MANUAL override for dashboards
+    private var overriddenUserId: String? = null
+
+    fun setUserId(uid: String) {
+        overriddenUserId = uid
+    }
+
     fun registerContainer(container: View) {
         containerRef = WeakReference(container)
     }
 
     fun startListening(activity: Activity) {
-        val uid = auth.currentUser?.uid ?: return
+        val uid = overriddenUserId ?: auth.currentUser?.uid ?: return
         if (listener != null) return
 
         listener = db.collection("notifications")

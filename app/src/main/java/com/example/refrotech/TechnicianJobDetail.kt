@@ -8,9 +8,12 @@ import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.firebase.firestore.FirebaseFirestore
 import android.util.Log
 import android.net.Uri
+import java.text.SimpleDateFormat
+import java.util.*
 
 class TechnicianJobDetail : AppCompatActivity() {
 
@@ -40,6 +43,19 @@ class TechnicianJobDetail : AppCompatActivity() {
 
     // reflect current job status (used to decide if delete allowed for technician)
     private var currentWorkStatus: String = "pending"
+
+    // for past job detection
+    private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+    private var isPastJob: Boolean = false
+
+    // ======================
+    // NEW: AC UNIT SUPPORT
+    // ======================
+    // Added to show saved AC units on TechnicianJobDetail (read-only)
+    private lateinit var recyclerUnits: RecyclerView
+    private val units = mutableListOf<ACUnit>()
+    private lateinit var unitAdapter: ACUnitAdapter
+    // ======================
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -79,6 +95,15 @@ class TechnicianJobDetail : AppCompatActivity() {
         btnSelectImages.setOnClickListener { selectImages() }
         btnUpload.setOnClickListener { uploadImages() }
 
+        // ---------------------
+        // Initialize units list UI (read-only)
+        // ---------------------
+        recyclerUnits = findViewById(R.id.recyclerUnits)
+        recyclerUnits.layoutManager = LinearLayoutManager(this)
+        unitAdapter = ACUnitAdapter(units) { /* read-only click - do nothing */ }
+        recyclerUnits.adapter = unitAdapter
+        // ---------------------
+
         setupStatusSpinner()
 
         // initial load
@@ -110,15 +135,62 @@ class TechnicianJobDetail : AppCompatActivity() {
                     val status = doc.getString("workStatus")
                         ?: doc.getString("jobStatus")
                         ?: doc.getString("status")
-                    currentWorkStatus = status?.lowercase() ?: "pending"
+                    currentWorkStatus = status?.lowercase(Locale.getDefault()) ?: "pending"
 
-                    tvCustomerName.text = doc.getString("customerName") ?: doc.getString("name") ?: "Nama Pelanggan"
+                    tvCustomerName.text =
+                        doc.getString("customerName")
+                            ?: doc.getString("name")
+                                    ?: "Nama Pelanggan"
+
                     tvCustomerAddress.text = doc.getString("address") ?: "Alamat"
-                    val date = doc.getString("date") ?: ""
-                    val time = doc.getString("time") ?: ""
-                    tvScheduledTime.text = "$date • $time"
 
+                    // Prefer "date"/"time", but fall back to newDate/newTime if needed
+                    val dateStr = doc.getString("date") ?: doc.getString("newDate") ?: ""
+                    val timeStr = doc.getString("time") ?: doc.getString("newTime") ?: ""
+                    tvScheduledTime.text = "$dateStr • $timeStr"
+
+                    // New rule: locked if > 24 hours after scheduled time
+                    isPastJob = isEditLocked(dateStr, timeStr)
+
+                    // ======================
+                    // Load AC units (read-only display)
+                    // ======================
+                    try {
+                        units.clear()
+                        val unitsField = doc.get("units")
+                        if (unitsField is List<*>) {
+                            for (u in unitsField) {
+                                val m = u as? Map<*, *> ?: continue
+                                units.add(
+                                    ACUnit(
+                                        brand = m["brand"]?.toString() ?: "",
+                                        pk = m["pk"]?.toString() ?: "",
+                                        workType = m["workType"]?.toString() ?: ""
+                                    )
+                                )
+                            }
+                        }
+                        unitAdapter.notifyDataSetChanged()
+                    } catch (ex: Exception) {
+                        Log.w("TECHJOB", "Failed to parse units field: ${ex.message}")
+                    }
+                    // ======================
+
+                    // Apply initial spinner selection based on current status
                     setSpinnerSelectionFromStatus(currentWorkStatus)
+
+                    // If job is in the past, disable any editing (status + docs)
+                    if (isPastJob) {
+                        spinnerStatus.isEnabled = false
+                        btnSelectImages.isEnabled = false
+                        btnUpload.isEnabled = false
+
+                        // Optional visual feedback
+                        spinnerStatus.alpha = 0.5f
+                        btnSelectImages.alpha = 0.5f
+                        btnUpload.alpha = 0.5f
+                    }
+
                 } else {
                     Log.w("TECHJOB", "Document does not exist for id=$id origin=$origin")
                 }
@@ -186,6 +258,11 @@ class TechnicianJobDetail : AppCompatActivity() {
      * remaining = MAX - (existingDocs.size + tempSelectedPreviews.size)
      */
     private fun selectImages() {
+        if (isPastJob) {
+            Toast.makeText(this, "Tidak bisa menambah dokumentasi untuk pekerjaan yang sudah lewat.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
         val remaining = MAX_IMAGES_PER_JOB - (existingDocs.size + tempSelectedPreviews.size)
         if (remaining <= 0) {
             Toast.makeText(this, "Maximum $MAX_IMAGES_PER_JOB images already used", Toast.LENGTH_SHORT).show()
@@ -245,6 +322,11 @@ class TechnicianJobDetail : AppCompatActivity() {
     }
 
     private fun uploadImages() {
+        if (isPastJob) {
+            Toast.makeText(this, "Tidak bisa upload dokumentasi untuk pekerjaan yang sudah lewat.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
         if (photoUris.isEmpty()) {
             Toast.makeText(this, "Select images first", Toast.LENGTH_SHORT).show()
             return
@@ -276,9 +358,9 @@ class TechnicianJobDetail : AppCompatActivity() {
      * - Uploaded deletion calls Firestore.delete() then reloads existingDocs.
      */
     private fun handleDeleteDoc(docItem: DocItem) {
-        val allowDeleteForTechnician = currentWorkStatus != "completed"
+        val allowDeleteForTechnician = currentWorkStatus != "completed" && !isPastJob
         if (!allowDeleteForTechnician) {
-            Toast.makeText(this, "Cannot delete after job is completed", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Cannot delete documentation for past or completed jobs", Toast.LENGTH_SHORT).show()
             return
         }
 
@@ -319,12 +401,31 @@ class TechnicianJobDetail : AppCompatActivity() {
 
         spinnerStatus.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             var initialized = false
-            override fun onItemSelected(parent: AdapterView<*>, view: View?, position: Int, idPos: Long) {
+            override fun onItemSelected(
+                parent: AdapterView<*>,
+                view: View?,
+                position: Int,
+                idPos: Long
+            ) {
                 if (!initialized) {
                     initialized = true
                     return
                 }
-                val selected = statuses[position].lowercase()
+
+                // For past jobs, do not allow any status change
+                if (isPastJob) {
+                    setSpinnerSelectionFromStatus(currentWorkStatus)
+                    Toast.makeText(
+                        this@TechnicianJobDetail,
+                        "Tidak bisa mengubah status untuk pekerjaan yang sudah lewat.",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    return
+                }
+
+                val statuses = listOf("confirmed", "on-progress", "completed")
+                val selected = statuses[position]
+
                 if (selected == currentWorkStatus) return
 
                 val allowed = when (currentWorkStatus) {
@@ -336,12 +437,20 @@ class TechnicianJobDetail : AppCompatActivity() {
 
                 if (selected !in allowed) {
                     setSpinnerSelectionFromStatus(currentWorkStatus)
-                    Toast.makeText(this@TechnicianJobDetail, "Cannot change status to $selected from $currentWorkStatus", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(
+                        this@TechnicianJobDetail,
+                        "Cannot change status to $selected from $currentWorkStatus",
+                        Toast.LENGTH_SHORT
+                    ).show()
                     return
                 }
 
                 val docRef = jobDocumentRef() ?: run {
-                    Toast.makeText(this@TechnicianJobDetail, "Job reference invalid", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(
+                        this@TechnicianJobDetail,
+                        "Job reference invalid",
+                        Toast.LENGTH_SHORT
+                    ).show()
                     Log.w("TECHJOB", "Attempted to update status but jobDocumentRef() returned null.")
                     setSpinnerSelectionFromStatus(currentWorkStatus)
                     return
@@ -358,7 +467,7 @@ class TechnicianJobDetail : AppCompatActivity() {
                                 jobDocumentRef()?.get()?.addOnSuccessListener { docSnap ->
                                     try {
                                         if (docSnap != null && docSnap.exists()) {
-                                            val customerId = docSnap.getString("customerId") ?: docSnap.getString("customerId")
+                                            val customerId = docSnap.getString("customerId")
                                             if (!customerId.isNullOrBlank()) {
                                                 try {
                                                     NotificationUtils.createNotification(
@@ -367,30 +476,58 @@ class TechnicianJobDetail : AppCompatActivity() {
                                                         "Teknisi telah menyelesaikan pekerjaan Anda"
                                                     )
                                                 } catch (ex: Exception) {
-                                                    Log.w("TECHJOB", "Failed to create notification: ${ex.message}")
+                                                    Log.w(
+                                                        "TECHJOB",
+                                                        "Failed to create notification: ${ex.message}"
+                                                    )
                                                 }
                                             } else {
-                                                Log.w("TECHJOB", "customerId missing in job doc for id=$id")
+                                                Log.w(
+                                                    "TECHJOB",
+                                                    "customerId missing in job doc for id=$id"
+                                                )
                                             }
                                         } else {
-                                            Log.w("TECHJOB", "job doc snapshot missing when creating completion notification for id=$id")
+                                            Log.w(
+                                                "TECHJOB",
+                                                "job doc snapshot missing when creating completion notification for id=$id"
+                                            )
                                         }
                                     } catch (inner: Exception) {
-                                        Log.e("TECHJOB", "Error inside docSnap handler: ${inner.message}", inner)
+                                        Log.e(
+                                            "TECHJOB",
+                                            "Error inside docSnap handler: ${inner.message}",
+                                            inner
+                                        )
                                     }
                                 }?.addOnFailureListener { e ->
-                                    Log.w("TECHJOB", "Failed to re-fetch job doc for notification: ${e.message}")
+                                    Log.w(
+                                        "TECHJOB",
+                                        "Failed to re-fetch job doc for notification: ${e.message}"
+                                    )
                                 }
                             } catch (ex: Exception) {
-                                Log.w("TECHJOB", "Exception while scheduling completion notification: ${ex.message}", ex)
+                                Log.w(
+                                    "TECHJOB",
+                                    "Exception while scheduling completion notification: ${ex.message}",
+                                    ex
+                                )
                             }
                         }
 
                         currentWorkStatus = selected
-                        Toast.makeText(this@TechnicianJobDetail, "Status updated", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(
+                            this@TechnicianJobDetail,
+                            "Status updated",
+                            Toast.LENGTH_SHORT
+                        ).show()
                     }
                     .addOnFailureListener { e ->
-                        Toast.makeText(this@TechnicianJobDetail, "Failed to update status: ${e.message}", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(
+                            this@TechnicianJobDetail,
+                            "Failed to update status: ${e.message}",
+                            Toast.LENGTH_SHORT
+                        ).show()
                         setSpinnerSelectionFromStatus(currentWorkStatus)
                         Log.e("TECHJOB", "Failed updating status for id=$id: ${e.message}", e)
                     }
@@ -400,8 +537,34 @@ class TechnicianJobDetail : AppCompatActivity() {
         }
     }
 
+    private fun isEditLocked(dateStr: String, timeStr: String): Boolean {
+        if (dateStr.isBlank() || timeStr.isBlank()) return true
+
+        return try {
+            val formatter = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
+
+            // Build schedule datetime
+            val scheduleDateTime = formatter.parse("$dateStr $timeStr") ?: return true
+
+            // Add 24 hours
+            val cal = Calendar.getInstance().apply {
+                time = scheduleDateTime
+                add(Calendar.HOUR_OF_DAY, 24)
+            }
+
+            val lockTime = cal.time
+            val now = Date()
+
+            // Locked = now is AFTER scheduleTime + 24h
+            now.after(lockTime)
+        } catch (e: Exception) {
+            true
+        }
+    }
+
+
     private fun setSpinnerSelectionFromStatus(status: String) {
-        val normalized = status.lowercase()
+        val normalized = status.lowercase(Locale.getDefault())
         val index = when (normalized) {
             "confirmed" -> 0
             "on-progress", "on progress", "onprogress" -> 1

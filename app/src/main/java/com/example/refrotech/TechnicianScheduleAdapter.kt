@@ -2,6 +2,7 @@ package com.example.refrotech
 
 import android.content.Context
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
@@ -14,7 +15,7 @@ class TechnicianScheduleAdapter(
 
     var onItemClick: ((Schedule) -> Unit)? = null
 
-    inner class VH(itemView: android.view.View) : RecyclerView.ViewHolder(itemView) {
+    inner class VH(itemView: View) : RecyclerView.ViewHolder(itemView) {
         val tvCustomer: TextView = itemView.findViewById(R.id.tvScheduleCustomer)
         val tvTime: TextView = itemView.findViewById(R.id.tvScheduleTime)
         val tvTechs: TextView = itemView.findViewById(R.id.tvScheduleTechnicians)
@@ -23,20 +24,15 @@ class TechnicianScheduleAdapter(
         val btnEdit: ImageView? = itemView.findViewById(R.id.btnEditSchedule)
 
         init {
+            // Technician should NEVER see or use edit button
+            btnEdit?.visibility = View.GONE
+            btnEdit?.isEnabled = false
+            btnEdit?.isClickable = false
+
             itemView.setOnClickListener {
                 val pos = adapterPosition
                 if (pos != RecyclerView.NO_POSITION) {
                     onItemClick?.invoke(items[pos])
-                }
-            }
-
-            btnEdit?.setOnClickListener {
-                val pos = adapterPosition
-                if (pos != RecyclerView.NO_POSITION) {
-                    val s = items[pos]
-                    val i = android.content.Intent(ctx, EditSchedulePage::class.java)
-                    i.putExtra("scheduleId", s.scheduleId)
-                    ctx.startActivity(i)
                 }
             }
         }
@@ -54,7 +50,15 @@ class TechnicianScheduleAdapter(
         holder.tvTime.text = "${s.date} • ${s.time}"
         holder.tvAddress.text = s.address
         holder.tvTechs.text = s.technicians.joinToString(", ")
-        holder.tvStatus.text = "Status: ${s.workStatus.replaceFirstChar { it.uppercase() }}"
+
+        // Consistent status formatting
+        val statusText = when (s.normalizedStatus.lowercase()) {
+            "completed" -> "Completed"
+            "on-progress" -> "On-Progress"
+            "confirmed" -> "Confirmed"
+            else -> s.normalizedStatus.replaceFirstChar { it.uppercase() }
+        }
+        holder.tvStatus.text = "Status: $statusText"
     }
 
     override fun getItemCount(): Int = items.size

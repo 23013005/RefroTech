@@ -21,6 +21,11 @@ import java.util.*
  * - Units saved as list of maps: { brand, pk, workType }
  * - Technician selection with availability check
  * - Date is passed in Intent (from LeaderDashboard) or defaults to today
+ *
+ * Time:
+ * - Slot-based: 08–09, 09–10, 10–11, (skip 11–12), 12–13, 13–14, 14–15, 15–16, 16–17
+ * - Stored as start time "HH:mm" in field "time"
+ * - Blocked per date + technician based on SCHEDULES collection
  */
 class AddSchedulePage : AppCompatActivity() {
 
@@ -109,7 +114,11 @@ class AddSchedulePage : AppCompatActivity() {
      */
     private fun showTimePicker() {
         if (selectedTechIds.isEmpty()) {
-            Toast.makeText(this, "Pilih teknisi terlebih dahulu sebelum memilih waktu.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(
+                this,
+                "Pilih teknisi terlebih dahulu sebelum memilih waktu.",
+                Toast.LENGTH_SHORT
+            ).show()
             return
         }
 
@@ -132,14 +141,20 @@ class AddSchedulePage : AppCompatActivity() {
         techIds: List<String>,
         onResult: (Set<String>) -> Unit
     ) {
-        // Firestore whereArrayContainsAny requires non-empty list
         if (techIds.isEmpty()) {
             onResult(emptySet())
             return
         }
 
         val blocked = mutableSetOf<String>()
+        var remaining = 3
 
+        fun done() {
+            remaining--
+            if (remaining <= 0) onResult(blocked)
+        }
+
+        // 1) SCHEDULES (leader-made)
         db.collection(FirestoreFields.SCHEDULES)
             .whereEqualTo("date", dateIso)
             .whereArrayContainsAny(FirestoreFields.FIELD_ASSIGNED_TECHNICIAN_IDS, techIds)
@@ -147,33 +162,79 @@ class AddSchedulePage : AppCompatActivity() {
             .addOnSuccessListener { snap ->
                 for (doc in snap.documents) {
                     val t = doc.getString("time")
-                    if (!t.isNullOrBlank()) {
-                        blocked.add(t)
-                    }
+                    if (!t.isNullOrBlank()) blocked.add(t)
                 }
-                onResult(blocked)
+                done()
             }
-            .addOnFailureListener {
-                // On failure, fallback to no blocked times
-                onResult(blocked)
+            .addOnFailureListener { done() }
+
+        // 2) REQUESTS normal (confirmed / assigned / on-progress / completed)
+        db.collection(FirestoreFields.REQUESTS)
+            .whereArrayContainsAny("technicianIds", techIds)
+            .get()
+            .addOnSuccessListener { snap ->
+                for (doc in snap.documents) {
+                    val status = doc.getString("status")?.lowercase()
+                    val jobStatus = doc.getString("jobStatus")?.lowercase()
+
+                    val isBlocking =
+                        status == "confirmed" ||
+                                status == "assigned" ||
+                                jobStatus == "confirmed" ||
+                                jobStatus == "on-progress" ||
+                                jobStatus == "completed"
+
+                    if (!isBlocking) continue
+
+                    val d = doc.getString("date")
+                    val t = doc.getString("time")
+
+                    if (d == dateIso && !t.isNullOrBlank()) blocked.add(t)
+                }
+                done()
             }
+            .addOnFailureListener { done() }
+
+        // 3) REQUESTS rescheduled (accepted)
+        db.collection(FirestoreFields.REQUESTS)
+            .whereArrayContainsAny("assignedTechnicianIds", techIds)
+            .get()
+            .addOnSuccessListener { snap ->
+                for (doc in snap.documents) {
+                    val res = doc.getString("rescheduleStatus")?.lowercase()
+                    if (res != "accepted") continue
+
+                    val d = doc.getString("newDate")
+                    val t = doc.getString("newTime")
+
+                    if (d == dateIso && !t.isNullOrBlank()) blocked.add(t)
+                }
+                done()
+            }
+            .addOnFailureListener { done() }
     }
+
 
     /**
      * Shows a dialog listing the time slots.
      * - Disabled (grey) if startTime is in blockedTimes.
-     * - Selecting a slot sets etTime to the start time ("HH:mm") as before.
+     * - Selecting a slot sets etTime to the start time ("HH:mm").
      */
     private fun showTimeSlotDialog(blockedTimes: Set<String>) {
         val labels = timeSlots.map { it.label }
 
-        val adapter = object : ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, labels) {
+        val adapter = object :
+            ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, labels) {
             override fun isEnabled(position: Int): Boolean {
                 val slot = timeSlots[position]
                 return !blockedTimes.contains(slot.startTime)
             }
 
-            override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+            override fun getView(
+                position: Int,
+                convertView: View?,
+                parent: ViewGroup
+            ): View {
                 val view = super.getView(position, convertView, parent) as TextView
                 val slot = timeSlots[position]
                 val isBlocked = blockedTimes.contains(slot.startTime)
@@ -217,7 +278,8 @@ class AddSchedulePage : AppCompatActivity() {
         val spinner = dialogView.findViewById<Spinner>(R.id.spinnerWorkType)
 
         val workTypes = listOf("Service", "Installation", "Repairment")
-        spinner.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, workTypes)
+        spinner.adapter =
+            ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, workTypes)
 
         if (editIndex != null && editIndex in units.indices) {
             val u = units[editIndex]
@@ -354,18 +416,33 @@ class AddSchedulePage : AppCompatActivity() {
             .show()
     }
 
-    private fun technicianIsUnavailableForDate(docFields: Map<String, Any>, targetDateStr: String): Boolean {
+    private fun technicianIsUnavailableForDate(
+        docFields: Map<String, Any>,
+        targetDateStr: String
+    ): Boolean {
         val from = docFields["unavailableFrom"]?.toString() ?: return false
         val to = docFields["unavailableTo"]?.toString()
 
-        val target = try { dateFormat.parse(targetDateStr) } catch (e: Exception) { return false }
-        val start = try { dateFormat.parse(from) } catch (e: Exception) { return false }
+        val target = try {
+            dateFormat.parse(targetDateStr)
+        } catch (e: Exception) {
+            return false
+        }
+        val start = try {
+            dateFormat.parse(from)
+        } catch (e: Exception) {
+            return false
+        }
 
         if (to.isNullOrBlank()) {
             return !target.before(start)
         }
 
-        val end = try { dateFormat.parse(to) } catch (e: Exception) { return false }
+        val end = try {
+            dateFormat.parse(to)
+        } catch (e: Exception) {
+            return false
+        }
         return !target.before(start) && !target.after(end)
     }
 
@@ -392,7 +469,7 @@ class AddSchedulePage : AppCompatActivity() {
 
         val scheduleData = hashMapOf<String, Any>(
             "date" to scheduleDate,
-            "time" to time,
+            "time" to time,                                   // start time "HH:mm"
             "customerName" to customer,
             "address" to address,
             FirestoreFields.FIELD_TECHNICIANS to selectedTechNames,
@@ -401,7 +478,9 @@ class AddSchedulePage : AppCompatActivity() {
             "units" to unitsList,
             "createdAt" to Timestamp.now(),
             "createdBy" to "leader",
-            "status" to "assigned"
+            // Keep legacy 'status' for compatibility AND add 'workStatus' to match new schedule logic
+            "status" to "assigned",
+            "workStatus" to "assigned"
         )
 
         db.collection(FirestoreFields.SCHEDULES)

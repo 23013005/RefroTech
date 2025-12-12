@@ -275,9 +275,9 @@ class DashboardCustomer : AppCompatActivity() {
     /**
      * Customer picks a time slot:
      * - Only from predefined ranges (08:00–17:00, with 11–12 skipped)
-     * - Disabled if already taken by:
-     *      status == "confirmed" (date/time)
-     *      OR jobStatus == "assigned" (newDate/newTime)
+     * - Disabled if already taken by ANY job on that date:
+     *      • requests with blocking status
+     *      • schedules with non-cancelled workStatus
      * - Shows full label in etTime ("08:00 - 09:00")
      * - Saves only startTime ("08:00") to Firestore
      */
@@ -305,15 +305,27 @@ class DashboardCustomer : AppCompatActivity() {
     }
 
     /**
-     * Query Firestore "requests" collection to find which start times are blocked for this date.
+     * GLOBAL time-blocking rules for customers:
      *
-     * Block when:
-     * - status == "confirmed"  AND date == selectedDate -> block "time"
-     * - jobStatus == "assigned" AND newDate == selectedDate -> block "newTime"
+     * A slot (date + start time) is BLOCKED when:
+     *  1) A schedule exists on that date with non-cancelled workStatus
+     *        - collection: "schedules"
+     *        - fields: date, time, workStatus
+     *  2) A request exists on that date with blocking status:
+     *        - status in ["confirmed", "assigned"]
+     *        - OR jobStatus in ["confirmed", "assigned", "on-progress", "completed"]
+     *        - blocks its "time"
+     *  3) A reschedule exists targeting that date:
+     *        - newDate == selectedIsoDate
+     *        - AND (rescheduleStatus == "accepted"
+     *               OR jobStatus in ["assigned", "on-progress", "completed"])
+     *        - blocks its "newTime"
+     *
+     * We intentionally ignore "pending" anything here — pending should never block.
      */
     private fun fetchBlockedTimesForDate(selectedIsoDate: String, onResult: (Set<String>) -> Unit) {
         val blocked = mutableSetOf<String>()
-        var remaining = 2
+        var remaining = 3
 
         fun done() {
             remaining--
@@ -322,15 +334,19 @@ class DashboardCustomer : AppCompatActivity() {
             }
         }
 
-        // 1) Normal confirmed requests
-        db.collection("requests")
+        // 1) SCHEDULES on that date
+        db.collection("schedules")
             .whereEqualTo("date", selectedIsoDate)
-            .whereEqualTo("status", "confirmed")
             .get()
             .addOnSuccessListener { snap ->
                 for (doc in snap.documents) {
+                    val workStatus = doc.getString("workStatus")?.lowercase(Locale.getDefault())
+                    if (workStatus == "cancelled") continue
+
                     val t = doc.getString("time")
-                    if (!t.isNullOrBlank()) blocked.add(t)
+                    if (!t.isNullOrBlank()) {
+                        blocked.add(t)
+                    }
                 }
                 done()
             }
@@ -338,15 +354,51 @@ class DashboardCustomer : AppCompatActivity() {
                 done()
             }
 
-        // 2) Reschedule that has been assigned (approved via jobStatus == "assigned")
+        // 2) REQUESTS using main date/time
         db.collection("requests")
-            .whereEqualTo("newDate", selectedIsoDate)
-            .whereEqualTo("jobStatus", "assigned")
+            .whereEqualTo("date", selectedIsoDate)
             .get()
             .addOnSuccessListener { snap ->
                 for (doc in snap.documents) {
+                    val status = doc.getString("status")?.lowercase(Locale.getDefault())
+                    val jobStatus = doc.getString("jobStatus")?.lowercase(Locale.getDefault())
+
+                    val blocking =
+                        status in listOf("confirmed", "assigned") ||
+                                jobStatus in listOf("confirmed", "assigned", "on-progress", "completed")
+
+                    if (!blocking) continue
+
+                    val t = doc.getString("time")
+                    if (!t.isNullOrBlank()) {
+                        blocked.add(t)
+                    }
+                }
+                done()
+            }
+            .addOnFailureListener {
+                done()
+            }
+
+        // 3) REQUESTS using reschedule newDate/newTime
+        db.collection("requests")
+            .whereEqualTo("newDate", selectedIsoDate)
+            .get()
+            .addOnSuccessListener { snap ->
+                for (doc in snap.documents) {
+                    val rescheduleStatus = doc.getString("rescheduleStatus")?.lowercase(Locale.getDefault())
+                    val jobStatus = doc.getString("jobStatus")?.lowercase(Locale.getDefault())
+
+                    val blocking =
+                        rescheduleStatus == "accepted" ||
+                                jobStatus in listOf("assigned", "on-progress", "completed")
+
+                    if (!blocking) continue
+
                     val t = doc.getString("newTime")
-                    if (!t.isNullOrBlank()) blocked.add(t)
+                    if (!t.isNullOrBlank()) {
+                        blocked.add(t)
+                    }
                 }
                 done()
             }

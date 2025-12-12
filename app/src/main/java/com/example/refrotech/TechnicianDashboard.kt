@@ -39,11 +39,29 @@ class TechnicianDashboard : AppCompatActivity() {
     // Dashboard shows only active jobs
     private val dashboardAllowed = setOf("confirmed", "on-progress")
 
+    // NOTIFICATION FLAG
+    private var inAppNotifStarted = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_technician_dashboard)
 
+        // ========= Technician ID =========
         technicianId = intent.getStringExtra("userId") ?: ""
+        InAppNotificationManager.setUserId(technicianId)   // REQUIRED
+        InAppNotificationManager.startListening(this)
+
+        // ===================== NOTIFICATION MANAGER INIT =====================
+        val notifContainer = findViewById<LinearLayout?>(R.id.inAppNotifContainer)
+        if (notifContainer != null) {
+            try {
+                InAppNotificationManager.registerContainer(notifContainer)
+                InAppNotificationManager.startListening(this)
+                inAppNotifStarted = true
+            } catch (e: Exception) {
+                inAppNotifStarted = false
+            }
+        }
 
         recyclerSchedules = findViewById(R.id.recyclerSchedules)
         recyclerSchedules.layoutManager = LinearLayoutManager(this)
@@ -88,7 +106,6 @@ class TechnicianDashboard : AppCompatActivity() {
             val intent = Intent(this, TechnicianJobDetail::class.java)
             intent.putExtra("userId", technicianId)
             if (schedule.origin == "request") {
-                // A: send requestId for request origin
                 intent.putExtra("origin", "request")
                 intent.putExtra("id", schedule.requestId)
             } else {
@@ -107,6 +124,7 @@ class TechnicianDashboard : AppCompatActivity() {
         listenAssignedJobs()
     }
 
+
     // ======================
     // REAL-TIME LISTENERS
     // ======================
@@ -118,8 +136,6 @@ class TechnicianDashboard : AppCompatActivity() {
             .whereArrayContains(FirestoreFields.FIELD_ASSIGNED_TECHNICIAN_IDS, technicianId)
             .addSnapshotListener { _, _ -> refreshMergedJobs() }
 
-        // Some request documents may use technicianIds or assignedTechnicianIds — we listen by both where necessary.
-        // Use technicianIds as more reliable for request assignment if assignedTechnicianIds not present.
         requestListener = db.collection(FirestoreFields.REQUESTS)
             .whereArrayContains(FirestoreFields.FIELD_TECHNICIAN_IDS, technicianId)
             .addSnapshotListener { _, _ -> refreshMergedJobs() }
@@ -161,7 +177,6 @@ class TechnicianDashboard : AppCompatActivity() {
                             }
                         }
 
-                        // Sort by date + time
                         merged.sortWith(compareBy({ it.date }, { it.time }))
 
                         allSchedules = merged
@@ -188,8 +203,11 @@ class TechnicianDashboard : AppCompatActivity() {
         scheduleListener?.remove()
         requestListener?.remove()
 
-        // stop notification listener when leaving dashboard
-        InAppNotificationManager.stopListening()
+        // Stop only if started
+        if (inAppNotifStarted) {
+            InAppNotificationManager.stopListening()
+            inAppNotifStarted = false
+        }
     }
 
     override fun onDestroy() {
@@ -197,7 +215,9 @@ class TechnicianDashboard : AppCompatActivity() {
         scheduleListener?.remove()
         requestListener?.remove()
 
-        // ensure notification listener stopped
-        InAppNotificationManager.stopListening()
+        if (inAppNotifStarted) {
+            InAppNotificationManager.stopListening()
+            inAppNotifStarted = false
+        }
     }
 }

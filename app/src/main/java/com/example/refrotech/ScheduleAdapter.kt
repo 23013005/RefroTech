@@ -11,7 +11,8 @@ import androidx.recyclerview.widget.RecyclerView
 
 class ScheduleAdapter(
     private val ctx: Context,
-    private var items: List<Schedule>
+    private var items: List<Schedule>,
+    private val allowEdit: Boolean = true   // <=== ADDED
 ) : RecyclerView.Adapter<ScheduleAdapter.VH>() {
 
     inner class VH(itemView: View) : RecyclerView.ViewHolder(itemView) {
@@ -38,7 +39,6 @@ class ScheduleAdapter(
         holder.tvAddress.text = item.address
         holder.tvTechs.text = item.technicians.joinToString(", ")
 
-        // Display the normalized status for consistent UI
         val statusText = when (item.normalizedStatus.lowercase()) {
             "completed" -> "Completed"
             "on-progress" -> "On-Progress"
@@ -48,19 +48,22 @@ class ScheduleAdapter(
         }
         holder.tvStatus.text = "Status: $statusText"
 
+        // SHOW OR HIDE EDIT BUTTON DEPENDING ON ALLOWEDIT
+        holder.btnEdit.visibility = if (allowEdit) View.VISIBLE else View.GONE
+
+        // Edit schedule click
         holder.btnEdit.setOnClickListener {
             val intent = Intent(ctx, EditSchedulePage::class.java)
             intent.putExtra("scheduleId", item.scheduleId)
             intent.putExtra("date", item.date)
-            // also pass origin so EditSchedulePage can load documentation from requests if needed
             intent.putExtra("origin", item.origin)
             ctx.startActivity(intent)
         }
 
         holder.itemView.setOnClickListener {
-            // if origin == "request" AND the request is still pending -> open LeaderNewRequestDetailActivity
-            // otherwise open EditSchedulePage (for confirmed requests and for schedules)
-            val isPendingRequest = item.origin == "request" && item.normalizedStatus == "pending"
+            val isPendingRequest =
+                item.origin == "request" && item.normalizedStatus == "pending"
+
             val intent = if (isPendingRequest) {
                 Intent(ctx, LeaderNewRequestDetailActivity::class.java).apply {
                     putExtra("requestId", item.requestId)
@@ -69,7 +72,7 @@ class ScheduleAdapter(
                 Intent(ctx, EditSchedulePage::class.java).apply {
                     putExtra("scheduleId", item.scheduleId)
                     putExtra("date", item.date)
-                    putExtra("origin", item.origin) // important so EditSchedulePage loads docs from right collection
+                    putExtra("origin", item.origin)
                 }
             }
             ctx.startActivity(intent)

@@ -56,6 +56,12 @@ class EditCustomerRequest : AppCompatActivity() {
     private val editableStatuses =
         setOf("pending", "waiting_approval", "not_reviewed", "notreviewed", "draft")
 
+    // remember original schedule for "ignore own slot" logic
+    private var originalIsoDate: String = ""
+    private var originalTime: String = ""
+    private var originalNewDate: String = ""
+    private var originalNewTime: String = ""
+
     // internal time slot model
     private data class TimeSlot(val label: String, val startTime: String)
 
@@ -187,6 +193,21 @@ class EditCustomerRequest : AppCompatActivity() {
                 val timeRaw = doc.getString("time") ?: doc.getString("requestedTime") ?: ""
                 val mapLink = doc.getString("mapLink") ?: doc.getString("map") ?: ""
                 val phone = doc.getString("phone") ?: doc.getString("phoneNumber") ?: ""
+
+                // remember original schedule (as ISO + plain HH:mm)
+                originalIsoDate = try {
+                    if (dateRaw.contains("/")) {
+                        val d = displayFormat.parse(dateRaw)
+                        if (d != null) isoFormat.format(d) else dateRaw
+                    } else {
+                        dateRaw
+                    }
+                } catch (_: Exception) {
+                    dateRaw
+                }
+                originalTime = timeRaw
+                originalNewDate = doc.getString("newDate") ?: ""
+                originalNewTime = doc.getString("newTime") ?: ""
 
                 etName.setText(name)
                 etAddress.setText(address)
@@ -349,13 +370,26 @@ class EditCustomerRequest : AppCompatActivity() {
     }
 
     /**
-     * Block times if:
-     * - status == "confirmed"  AND date == selectedDate -> field "time"
-     * - jobStatus == "assigned" AND newDate == selectedDate -> field "newTime"
+     * GLOBAL BLOCKING LOGIC (aligned with DashboardCustomer):
+     *
+     * Block slot if:
+     * 1) schedules: date == selectedIsoDate AND workStatus != "cancelled" -> block "time"
+     * 2) requests (main date):
+     *      - date == selectedIsoDate AND
+     *      - (status in ["confirmed", "assigned"] OR
+     *         jobStatus in ["confirmed", "assigned", "on-progress", "completed"])
+     *      -> block "time"
+     * 3) requests (reschedules):
+     *      - newDate == selectedIsoDate AND
+     *      - (rescheduleStatus == "accepted" OR
+     *         jobStatus in ["assigned", "on-progress", "completed"])
+     *      -> block "newTime"
+     *
+     * And we IGNORE this request's own original time / newTime so the user can keep the same slot.
      */
     private fun fetchBlockedTimesForDate(selectedIsoDate: String, onResult: (Set<String>) -> Unit) {
         val blocked = mutableSetOf<String>()
-        var remaining = 2
+        var remaining = 3
 
         fun done() {
             remaining--
@@ -364,33 +398,91 @@ class EditCustomerRequest : AppCompatActivity() {
             }
         }
 
-        // 1) confirmed requests
+        // 1) SCHEDULES: block non-cancelled schedules on this date
+        db.collection(FirestoreFields.SCHEDULES)
+            .whereEqualTo("date", selectedIsoDate)
+            .get()
+            .addOnSuccessListener { snap ->
+                for (doc in snap.documents) {
+                    val workStatus = doc.getString("workStatus") ?: ""
+                    if (workStatus.lowercase(Locale.getDefault()) != "cancelled") {
+                        val t = doc.getString("time")
+                        if (!t.isNullOrBlank()) {
+                            blocked.add(t)
+                        }
+                    }
+                }
+                done()
+            }
+            .addOnFailureListener {
+                done()
+            }
+
+        // 2) REQUESTS: main date
         db.collection(FirestoreFields.REQUESTS)
             .whereEqualTo("date", selectedIsoDate)
-            .whereEqualTo("status", "confirmed")
             .get()
             .addOnSuccessListener { snap ->
                 for (doc in snap.documents) {
-                    val t = doc.getString("time")
-                    if (!t.isNullOrBlank()) blocked.add(t)
+                    val docId = doc.id
+                    val status = doc.getString("status") ?: ""
+                    val jobStatus = doc.getString("jobStatus") ?: ""
+                    val t = doc.getString("time") ?: ""
+
+                    // Ignore own request's original slot
+                    if (docId == requestId &&
+                        selectedIsoDate == originalIsoDate &&
+                        t == originalTime
+                    ) {
+                        continue
+                    }
+
+                    val shouldBlock =
+                        status in listOf("confirmed", "assigned") ||
+                                jobStatus in listOf("confirmed", "assigned", "on-progress", "completed")
+
+                    if (shouldBlock && t.isNotBlank()) {
+                        blocked.add(t)
+                    }
                 }
                 done()
             }
-            .addOnFailureListener { done() }
+            .addOnFailureListener {
+                done()
+            }
 
-        // 2) reschedule approved via jobStatus == "assigned"
+        // 3) REQUESTS: reschedules (newDate/newTime)
         db.collection(FirestoreFields.REQUESTS)
             .whereEqualTo("newDate", selectedIsoDate)
-            .whereEqualTo("jobStatus", "assigned")
             .get()
             .addOnSuccessListener { snap ->
                 for (doc in snap.documents) {
-                    val t = doc.getString("newTime")
-                    if (!t.isNullOrBlank()) blocked.add(t)
+                    val docId = doc.id
+                    val rescheduleStatus = doc.getString("rescheduleStatus") ?: ""
+                    val jobStatus = doc.getString("jobStatus") ?: ""
+                    val nt = doc.getString("newTime") ?: ""
+
+                    // Ignore own request's rescheduled slot
+                    if (docId == requestId &&
+                        selectedIsoDate == originalNewDate &&
+                        nt == originalNewTime
+                    ) {
+                        continue
+                    }
+
+                    val shouldBlock =
+                        rescheduleStatus == "accepted" ||
+                                jobStatus in listOf("assigned", "on-progress", "completed")
+
+                    if (shouldBlock && nt.isNotBlank()) {
+                        blocked.add(nt)
+                    }
                 }
                 done()
             }
-            .addOnFailureListener { done() }
+            .addOnFailureListener {
+                done()
+            }
     }
 
     private fun showTimeSlotDialog(blockedTimes: Set<String>) {

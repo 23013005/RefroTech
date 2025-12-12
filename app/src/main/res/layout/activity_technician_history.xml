@@ -146,7 +146,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="History"
+                android:text="Riwayat"
                 android:textSize="12sp"
                 android:textColor="@color/black"
                 android:fontFamily="@font/inter_bold" />

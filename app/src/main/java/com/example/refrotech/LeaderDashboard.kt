@@ -33,6 +33,14 @@ class LeaderDashboard : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_leader_dashboard)
 
+        // ===================== NOTIFICATION MANAGER INIT =====================
+        val notifContainer = findViewById<LinearLayout?>(R.id.inAppNotifContainer)
+        if (notifContainer != null) {
+            InAppNotificationManager.registerContainer(notifContainer)
+            InAppNotificationManager.startListening(this)
+        }
+
+
         // ===================== FIND VIEWS FROM XML =====================
         calendarView = findViewById(R.id.calendarView)
         tvSelectedDate = findViewById(R.id.tvSelectedDate)
