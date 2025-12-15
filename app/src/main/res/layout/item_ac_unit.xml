@@ -42,7 +42,19 @@
             android:text="Jenis Pekerjaan:"
             android:textColor="@color/black"
             android:textSize="16sp"
-            android:fontFamily="@font/inter_bold" />
+            android:fontFamily="@font/inter_bold"
+            android:layout_marginBottom="2dp" />
+
+        <TextView
+            android:id="@+id/tvDescription"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Deskripsi:"
+            android:textColor="@color/black"
+            android:textSize="14sp"
+            android:fontFamily="@font/inter_bold"
+            android:layout_marginTop="4dp"/>
+
     </LinearLayout>
 
     <!-- Unit Number -->
@@ -56,4 +68,5 @@
         android:textSize="25sp"
         android:fontFamily="@font/inter_bold"
         android:layout_marginStart="16dp"/>
+
 </LinearLayout>

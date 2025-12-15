@@ -15,6 +15,7 @@ class ACUnitAdapter(
         val tvMerk: TextView = view.findViewById(R.id.tvMerkAC)
         val tvPK: TextView = view.findViewById(R.id.tvJumlahPK)
         val tvWork: TextView = view.findViewById(R.id.tvJenisPekerjaan)
+        val tvDescription: TextView = view.findViewById(R.id.tvDescription)
         val tvNumber: TextView = view.findViewById(R.id.tvUnitNumber)
 
         init {
@@ -36,6 +37,15 @@ class ACUnitAdapter(
         holder.tvMerk.text = "Merk AC: ${item.brand}"
         holder.tvPK.text = "Jumlah PK: ${item.pk}"
         holder.tvWork.text = "Jenis Pekerjaan: ${item.workType}"
+
+        // ✅ DESCRIPTION HANDLING (SAFE)
+        if (item.description.isNotBlank()) {
+            holder.tvDescription.visibility = View.VISIBLE
+            holder.tvDescription.text = "Deskripsi: ${item.description}"
+        } else {
+            holder.tvDescription.visibility = View.GONE
+        }
+
         holder.tvNumber.text = "#${position + 1}"
     }
 

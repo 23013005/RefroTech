@@ -165,7 +165,8 @@ class TechnicianJobDetail : AppCompatActivity() {
                                     ACUnit(
                                         brand = m["brand"]?.toString() ?: "",
                                         pk = m["pk"]?.toString() ?: "",
-                                        workType = m["workType"]?.toString() ?: ""
+                                        workType = m["workType"]?.toString() ?: "",
+                                        description = m["description"]?.toString() ?: ""
                                     )
                                 )
                             }

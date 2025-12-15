@@ -1,8 +1,9 @@
 package com.example.refrotech
 
-// Public top-level data class so all files can use it
+// Embedded unit model used in requests & schedules
 data class ACUnit(
     val brand: String = "",
     val pk: String = "",
-    val workType: String = ""
+    val workType: String = "",
+    val description: String = ""   // ✅ NEW
 )

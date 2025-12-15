@@ -276,6 +276,8 @@ class AddSchedulePage : AppCompatActivity() {
         val etBrand = dialogView.findViewById<EditText>(R.id.etBrand)
         val etPK = dialogView.findViewById<EditText>(R.id.etPK)
         val spinner = dialogView.findViewById<Spinner>(R.id.spinnerWorkType)
+        val etDescription = dialogView.findViewById<EditText>(R.id.etDescription)
+
 
         val workTypes = listOf("Service", "Installation", "Repairment")
         spinner.adapter =
@@ -286,6 +288,7 @@ class AddSchedulePage : AppCompatActivity() {
             etBrand.setText(u.brand)
             etPK.setText(u.pk)
             spinner.setSelection(workTypes.indexOf(u.workType).takeIf { it >= 0 } ?: 0)
+            etDescription.setText(u.description)
         } else {
             spinner.setSelection(0)
         }
@@ -304,6 +307,7 @@ class AddSchedulePage : AppCompatActivity() {
                 val brand = etBrand.text?.toString()?.trim() ?: ""
                 val pk = etPK.text?.toString()?.trim() ?: ""
                 val workType = spinner.selectedItem?.toString() ?: ""
+                val description = etDescription.text?.toString()?.trim() ?: ""
 
                 if (pk.isEmpty()) {
                     etPK.error = "Jumlah PK wajib diisi"
@@ -315,7 +319,7 @@ class AddSchedulePage : AppCompatActivity() {
                     return@setOnClickListener
                 }
 
-                val newUnit = ACUnit(brand = brand, pk = pk, workType = workType)
+                val newUnit = ACUnit(brand = brand, pk = pk, workType = workType, description = description)
                 if (editIndex == null) {
                     units.add(newUnit)
                     unitsAdapter.notifyItemInserted(units.size - 1)
@@ -465,7 +469,14 @@ class AddSchedulePage : AppCompatActivity() {
         }
 
         val unitsList =
-            units.map { u -> mapOf("brand" to u.brand, "pk" to u.pk, "workType" to u.workType) }
+            units.map {
+                mapOf(
+                    "brand" to it.brand,
+                    "pk" to it.pk,
+                    "workType" to it.workType,
+                    "description" to it.description
+                )
+            }
 
         val scheduleData = hashMapOf<String, Any>(
             "date" to scheduleDate,

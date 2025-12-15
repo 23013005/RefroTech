@@ -471,6 +471,7 @@ class DashboardCustomer : AppCompatActivity() {
         val etBrand = dialogView.findViewById<EditText>(R.id.etBrand)
         val etPK = dialogView.findViewById<EditText>(R.id.etPK)
         val spinnerWorkType = dialogView.findViewById<Spinner>(R.id.spinnerWorkType)
+        val etDescription = dialogView.findViewById<EditText>(R.id.etDescription)
 
         val workTypes = listOf("Servis", "Perbaikan", "Instalasi")
         val spinnerAdapter =
@@ -484,6 +485,7 @@ class DashboardCustomer : AppCompatActivity() {
             etPK.setText(unit.pk)
             val idx = workTypes.indexOf(unit.workType)
             spinnerWorkType.setSelection(if (idx >= 0) idx else 0)
+            etDescription.setText(unit.description)
         }
 
         val isEditMode = editIndex != null
@@ -514,6 +516,8 @@ class DashboardCustomer : AppCompatActivity() {
                 val brand = etBrand.text.toString().trim()
                 val pk = etPK.text.toString().trim()
                 val workType = spinnerWorkType.selectedItem.toString()
+                val description = etDescription.text.toString().trim()
+
 
                 if (pk.isEmpty()) {
                     etPK.error = "Jumlah PK wajib diisi"
@@ -523,11 +527,11 @@ class DashboardCustomer : AppCompatActivity() {
 
                 if (isEditMode && editIndex != null && editIndex in acUnits.indices) {
                     // Update existing unit
-                    acUnits[editIndex] = ACUnit(brand = brand, pk = pk, workType = workType)
+                    acUnits[editIndex] = ACUnit(brand = brand, pk = pk, workType = workType, description = description)
                     adapter.notifyItemChanged(editIndex)
                 } else {
                     // Add new unit
-                    val unit = ACUnit(brand = brand, pk = pk, workType = workType)
+                    val unit = ACUnit(brand = brand, pk = pk, workType = workType, description = description)
                     acUnits.add(unit)
                     adapter.notifyItemInserted(acUnits.size - 1)
                     recyclerACUnits.post {
@@ -601,7 +605,8 @@ class DashboardCustomer : AppCompatActivity() {
             mapOf(
                 "brand" to u.brand,
                 "pk" to u.pk,
-                "workType" to u.workType
+                "workType" to u.workType,
+                "description" to u.description
             )
         }
 

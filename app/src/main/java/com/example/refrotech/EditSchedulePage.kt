@@ -387,6 +387,8 @@ class EditSchedulePage : AppCompatActivity() {
         val etBrand = dialogView.findViewById<EditText>(R.id.etBrand)
         val etPK = dialogView.findViewById<EditText>(R.id.etPK)
         val spinner = dialogView.findViewById<Spinner>(R.id.spinnerWorkType)
+        val etDescription = dialogView.findViewById<EditText>(R.id.etDescription)
+
 
         val workTypes = listOf("Service", "Installation", "Repairment")
         spinner.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, workTypes)
@@ -396,6 +398,8 @@ class EditSchedulePage : AppCompatActivity() {
             etBrand.setText(u.brand)
             etPK.setText(u.pk)
             spinner.setSelection(workTypes.indexOf(u.workType).takeIf { it >= 0 } ?: 0)
+            etDescription.setText(u.description)
+
         } else {
             spinner.setSelection(0)
         }
@@ -421,7 +425,13 @@ class EditSchedulePage : AppCompatActivity() {
                     return@setOnClickListener
                 }
 
-                val newUnit = ACUnit(brand = brand, pk = pk, workType = workType)
+                val newUnit = ACUnit(
+                    brand = brand,
+                    pk = pk,
+                    workType = workType,
+                    description = etDescription.text.toString().trim()
+                )
+
                 if (editIndex == null) {
                     units.add(newUnit)
                     unitsAdapter.notifyItemInserted(units.size - 1)
@@ -603,7 +613,8 @@ class EditSchedulePage : AppCompatActivity() {
                             ACUnit(
                                 brand = m["brand"]?.toString() ?: "",
                                 pk = m["pk"]?.toString() ?: "",
-                                workType = m["workType"]?.toString() ?: ""
+                                workType = m["workType"]?.toString() ?: "",
+                                description = m["description"]?.toString() ?: ""
                             )
                         )
                     }
@@ -656,7 +667,12 @@ class EditSchedulePage : AppCompatActivity() {
         }
 
         val unitsList = units.map { u ->
-            mapOf("brand" to u.brand, "pk" to u.pk, "workType" to u.workType)
+            mapOf(
+                "brand" to u.brand,
+                "pk" to u.pk,
+                "workType" to u.workType,
+                "description" to u.description
+            )
         }
 
         val chosenStatus: String? = when (spinnerStatus.selectedItemPosition) {
