@@ -242,7 +242,17 @@ class EditCustomerRequest : AppCompatActivity() {
                             val brand = m["brand"]?.toString() ?: ""
                             val pk = m["pk"]?.toString() ?: ""
                             val workType = m["workType"]?.toString() ?: ""
-                            acUnitList.add(ACUnit(brand = brand, pk = pk, workType = workType))
+                            val description = m["description"]?.toString() ?: ""
+
+                            acUnitList.add(
+                                ACUnit(
+                                    brand = brand,
+                                    pk = pk,
+                                    workType = workType,
+                                    description = description
+                                )
+                            )
+
                         }
                     }
                 }
@@ -540,6 +550,8 @@ class EditCustomerRequest : AppCompatActivity() {
         val etBrand = dialogView.findViewById<EditText>(R.id.etBrand)
         val etPK = dialogView.findViewById<EditText>(R.id.etPK)
         val spinner = dialogView.findViewById<Spinner>(R.id.spinnerWorkType)
+        val etDescription = dialogView.findViewById<EditText>(R.id.etDescription)
+
 
         val workTypes = listOf("Servis", "Perbaikan", "Instalasi")
         spinner.adapter = ArrayAdapter(
@@ -553,6 +565,7 @@ class EditCustomerRequest : AppCompatActivity() {
             val u = acUnitList[editIndex]
             etBrand.setText(u.brand)
             etPK.setText(u.pk)
+            etDescription.setText(u.description)
             val idx = workTypes.indexOf(u.workType)
             spinner.setSelection(if (idx >= 0) idx else 0)
         }
@@ -578,7 +591,7 @@ class EditCustomerRequest : AppCompatActivity() {
                     return@setOnClickListener
                 }
 
-                val unit = ACUnit(brand = brand, pk = pk, workType = workType)
+                val unit = ACUnit(brand = brand, pk = pk, workType = workType, description = etDescription.text.toString().trim())
 
                 if (editIndex == null) {
                     acUnitList.add(unit)
@@ -653,7 +666,8 @@ class EditCustomerRequest : AppCompatActivity() {
             mapOf(
                 "brand" to unit.brand,
                 "pk" to unit.pk,
-                "workType" to unit.workType
+                "workType" to unit.workType,
+                "description" to unit.description
             )
         }
 

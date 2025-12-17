@@ -156,11 +156,15 @@ class WorkReportActivity : AppCompatActivity() {
                 if (unitsField is List<*>) {
                     for (u in unitsField) {
                         val m = u as? Map<*, *> ?: continue
-                        units.add(ACUnit(
-                            brand = m["brand"]?.toString() ?: "",
-                            pk = m["pk"]?.toString() ?: "",
-                            workType = m["workType"]?.toString() ?: ""
-                        ))
+                        units.add(
+                            ACUnit(
+                                brand = m["brand"]?.toString() ?: "",
+                                pk = m["pk"]?.toString() ?: "",
+                                workType = m["workType"]?.toString() ?: "",
+                                description = m["description"]?.toString() ?: ""
+                            )
+                        )
+
                     }
                 }
                 unitsAdapter.notifyDataSetChanged()

@@ -86,6 +86,32 @@ class HistoryAdapter(
                 it.time
             )
         }
+        // =======================
+        // EDIT REQUEST (CUSTOMER)
+        // =======================
+        holder.btnEdit.isEnabled =
+            it.normalizedStatus == "pending" ||
+                    it.normalizedStatus == "waiting_approval" ||
+                    it.normalizedStatus == "not_reviewed" ||
+                    it.normalizedStatus == "draft"
+
+        holder.btnEdit.alpha = if (holder.btnEdit.isEnabled) 1f else 0.4f
+
+        holder.btnEdit.setOnClickListener { v ->
+            if (!holder.btnEdit.isEnabled) {
+                Toast.makeText(
+                    v.context,
+                    "Request tidak dapat diedit pada tahap ini.",
+                    Toast.LENGTH_SHORT
+                ).show()
+                return@setOnClickListener
+            }
+
+            val intent = Intent(v.context, EditCustomerRequest::class.java)
+            intent.putExtra("requestId", it.id)
+            v.context.startActivity(intent)
+        }
+
     }
 
     // ======================================================
